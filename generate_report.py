@@ -4,15 +4,16 @@ Generates Sell Put / Sell Call analysis for configured stock tickers.
 Output: reports/YYYY-MM-DD.md
 """
 
-import json
 import math
+import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import mibian
+import numpy as np
 import pandas as pd
 import yfinance as yf
+from scipy.stats import norm
 
 # ============================================================
 # Configuration
@@ -87,26 +88,32 @@ def calc_greeks(
     iv_pct: float,
     option_type: str = "call",
 ) -> dict:
-    """Calculate Greeks using Black-Scholes (mibian)."""
+    """Calculate Greeks using Black-Scholes (scipy)."""
     if days_to_exp <= 0 or iv_pct <= 0 or strike <= 0 or spot <= 0:
         return {"delta": 0, "gamma": 0, "theta": 0, "vega": 0}
 
     try:
-        bs = mibian.BS([spot, strike, RISK_FREE_RATE, days_to_exp], volatility=iv_pct)
+        T = days_to_exp / 365.0
+        r = RISK_FREE_RATE / 100.0
+        sigma = iv_pct / 100.0
+        sqrt_T = math.sqrt(T)
+
+        d1 = (math.log(spot / strike) + (r + 0.5 * sigma ** 2) * T) / (sigma * sqrt_T)
+        d2 = d1 - sigma * sqrt_T
+
+        gamma = round(norm.pdf(d1) / (spot * sigma * sqrt_T), 4)
+        vega = round(spot * norm.pdf(d1) * sqrt_T / 100, 4)  # per 1% move
+
         if option_type == "put":
-            return {
-                "delta": round(bs.putDelta, 4),
-                "gamma": round(bs.gamma, 4),
-                "theta": round(bs.putTheta, 4),
-                "vega": round(bs.vega, 4),
-            }
+            delta = round(norm.cdf(d1) - 1, 4)
+            theta = round((-spot * norm.pdf(d1) * sigma / (2 * sqrt_T)
+                          + r * strike * math.exp(-r * T) * norm.cdf(-d2)) / 365, 4)
         else:
-            return {
-                "delta": round(bs.callDelta, 4),
-                "gamma": round(bs.gamma, 4),
-                "theta": round(bs.callTheta, 4),
-                "vega": round(bs.vega, 4),
-            }
+            delta = round(norm.cdf(d1), 4)
+            theta = round((-spot * norm.pdf(d1) * sigma / (2 * sqrt_T)
+                          - r * strike * math.exp(-r * T) * norm.cdf(d2)) / 365, 4)
+
+        return {"delta": delta, "gamma": gamma, "theta": theta, "vega": vega}
     except Exception:
         return {"delta": 0, "gamma": 0, "theta": 0, "vega": 0}
 
