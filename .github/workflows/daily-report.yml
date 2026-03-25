@@ -6,12 +6,17 @@ on:
     - cron: '0 13 * * 1-5'
   workflow_dispatch:  # Allow manual trigger from GitHub UI
 
+permissions:
+  contents: write
+
 jobs:
   generate-and-email:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-python@v5
         with:
