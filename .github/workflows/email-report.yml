@@ -1,0 +1,84 @@
+name: Email Daily Options Report
+
+on:
+  push:
+    paths:
+      - 'reports/*.md'
+
+jobs:
+  send-email:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get latest report info
+        id: report
+        run: |
+          # Find the newest report file from this push
+          REPORT_FILE=$(git diff --name-only HEAD~1 HEAD -- 'reports/*.md' | grep -v README | head -1)
+          if [ -z "$REPORT_FILE" ]; then
+            echo "No new report found"
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          REPORT_DATE=$(basename "$REPORT_FILE" .md)
+          echo "file=$REPORT_FILE" >> $GITHUB_OUTPUT
+          echo "date=$REPORT_DATE" >> $GITHUB_OUTPUT
+          echo "skip=false" >> $GITHUB_OUTPUT
+          echo "url=https://github.com/${{ github.repository }}/blob/main/$REPORT_FILE" >> $GITHUB_OUTPUT
+
+      - name: Build email body
+        if: steps.report.outputs.skip == 'false'
+        id: email
+        run: |
+          REPORT_FILE="${{ steps.report.outputs.file }}"
+          REPORT_DATE="${{ steps.report.outputs.date }}"
+          REPORT_URL="${{ steps.report.outputs.url }}"
+
+          # Build HTML email
+          cat > /tmp/email_body.html << 'HTMLEOF'
+          <html><body>
+          <h2>📊 每日選擇權策略報告 — REPORT_DATE_PLACEHOLDER</h2>
+          <p><strong>標的：</strong>TSLA, AMZN, NVDA</p>
+          <hr>
+          <h3>🔗 閱讀完整報告</h3>
+          <p><a href="REPORT_URL_PLACEHOLDER">👉 點此在 GitHub 上閱讀完整報告（含表格）</a></p>
+          <hr>
+          <h3>📋 報告摘要</h3>
+          <pre>
+          HTMLEOF
+
+          # Extract the summary section (最終總結) from the report
+          if grep -q "最終總結" "$REPORT_FILE"; then
+            sed -n '/最終總結/,/⚠️ 風險提示/{/⚠️ 風險提示/!p}' "$REPORT_FILE" >> /tmp/email_body.html
+          else
+            head -100 "$REPORT_FILE" >> /tmp/email_body.html
+          fi
+
+          cat >> /tmp/email_body.html << 'HTMLEOF'
+          </pre>
+          <hr>
+          <p><em>此報告由 Claude Code 自動產生並寄送。</em></p>
+          </body></html>
+          HTMLEOF
+
+          # Replace placeholders
+          sed -i "s|REPORT_DATE_PLACEHOLDER|$REPORT_DATE|g" /tmp/email_body.html
+          sed -i "s|REPORT_URL_PLACEHOLDER|$REPORT_URL|g" /tmp/email_body.html
+
+      - name: Send email
+        if: steps.report.outputs.skip == 'false'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: laiyanlong@gmail.com
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "📊 選擇權日報 ${{ steps.report.outputs.date }} — TSLA / AMZN / NVDA"
+          to: laiyanlong@gmail.com
+          from: "Options Report Bot <laiyanlong@gmail.com>"
+          html_body: file:///tmp/email_body.html
+          content_type: text/html
