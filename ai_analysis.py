@@ -1,21 +1,20 @@
 """
-AI-powered market commentary using Claude API.
+AI-powered market commentary using Google Gemini API.
 Generates qualitative analysis to complement the quantitative options report.
 """
 
-import json
 import os
 from datetime import datetime
 
 import yfinance as yf
 
-# Claude API is optional — skip gracefully if not available
+# Gemini API is optional — skip gracefully if not available
 try:
-    import anthropic
+    from google import genai
 
-    HAS_ANTHROPIC = True
+    HAS_GENAI = True
 except ImportError:
-    HAS_ANTHROPIC = False
+    HAS_GENAI = False
 
 
 def get_market_context(tickers: list[str]) -> str:
@@ -87,16 +86,16 @@ def get_market_context(tickers: list[str]) -> str:
 
 
 def generate_ai_commentary(quant_report: str, tickers: list[str]) -> str:
-    """Generate AI market commentary using Claude API.
+    """Generate AI market commentary using Google Gemini API.
 
     Returns the commentary string, or an error message if unavailable.
     """
-    if not HAS_ANTHROPIC:
-        return _fallback_message("anthropic package not installed")
+    if not HAS_GENAI:
+        return _fallback_message("google-genai package not installed")
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
-        return _fallback_message("ANTHROPIC_API_KEY not set")
+        return _fallback_message("GEMINI_API_KEY not set")
 
     # Fetch market context
     print("  Fetching market context for AI analysis...")
@@ -139,23 +138,22 @@ def generate_ai_commentary(quant_report: str, tickers: list[str]) -> str:
 - 具體引用報告中的數字（IV、CP 評分、年化報酬率等）
 - 最後加上免責聲明"""
 
-    print("  Calling Claude API...")
+    print("  Calling Gemini API...")
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=3000,
-            messages=[{"role": "user", "content": prompt}],
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
         )
-        return response.content[0].text
+        return response.text
     except Exception as e:
-        return _fallback_message(f"Claude API error: {e}")
+        return _fallback_message(f"Gemini API error: {e}")
 
 
 def _fallback_message(reason: str) -> str:
     """Return a fallback message when AI analysis is unavailable."""
     return (
         f"> ⚠️ AI 市場解讀暫時無法使用（{reason}）\n"
-        "> 請設定 `ANTHROPIC_API_KEY` 環境變數以啟用此功能。\n"
+        "> 請設定 `GEMINI_API_KEY` 環境變數以啟用此功能。\n"
         "> 量化分析報告仍然完整可用。"
     )
