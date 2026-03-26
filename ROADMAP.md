@@ -2,7 +2,7 @@
 
 Current status and future plans for Options Daily Report.
 
-## Current (v1.0)
+## v1.0 — Foundation
 
 - [x] Black-Scholes quantitative analysis
 - [x] Full Greeks (Delta, Gamma, Theta, Vega)
@@ -14,29 +14,61 @@ Current status and future plans for Options Daily Report.
 - [x] Dynamic ticker list
 - [x] Date override for backfill
 
-## v1.1 — Completed!
+## v1.1 — Enhanced Analytics
 
 - [x] **Interactive HTML report** with Plotly charts (Price History, IV Smile, CP Comparison, Delta Heatmap)
 - [x] **Earnings calendar** auto-detection and 14-day warning banner
 - [x] **IV percentile rank** (vs 52-week historical volatility range)
 - [x] **Telegram notification** integration (summary push via Bot API)
 - [x] **Docker support** for self-hosted deployment (Dockerfile + docker-compose)
+- [x] **Test suite** — 32 unit tests with GitHub Actions CI
 
-## Future (v2.0)
+## v1.2 — Options Intelligence
 
-- [ ] **Multi-strategy support** — Iron Condors, Vertical Spreads, Strangles
-- [ ] **Historical backtest** — track recommended trade outcomes
-- [ ] **Web dashboard** — Streamlit app for interactive exploration
-- [ ] **Multiple AI providers** — OpenAI, Claude, Ollama
-- [ ] **Portfolio tracking** — input your positions, get personalized recommendations
-- [ ] **Alerts system** — push notification when IV spikes or opportunities arise
+- [ ] **Put/Call ratio tracking** — fetch CBOE P/C ratio for each ticker, show trend (bullish/bearish signal)
+- [ ] **Max Pain calculation** — calculate max pain price from full options chain, show distance from current price
+- [ ] **Unusual options activity** — detect high volume/OI ratio strikes, flag potential smart money flow
+- [ ] **Expected Move calculation** — ATM straddle price to estimate expected range for the week
+- [ ] **Probability of Profit (POP)** — calculate POP for each recommended trade using delta-based estimation
+- [ ] **Bid-Ask spread quality** — flag strikes with wide spreads (>10% of premium), recommend liquid alternatives
+
+## v2.0 — Multi-Strategy
+
+- [ ] **Iron Condor analysis** — combine Sell Put + Sell Call into defined-risk spreads with P&L charts
+- [ ] **Vertical Spread analysis** — Bull Put Spread / Bear Call Spread with max loss/gain calculations
+- [ ] **Strangle/Straddle analysis** — ATM and OTM straddle/strangle pricing with breakeven levels
+- [ ] **Wheel Strategy tracker** — track Sell Put → assignment → Sell Call cycle, calculate running yield
+- [ ] **Calendar Spread analysis** — front-month vs back-month IV comparison for time spread opportunities
+- [ ] **Risk-defined position sizing** — auto-calculate position size based on account size and max risk %
+
+## v2.1 — Data & Backtesting
+
+- [ ] **Historical report database** — SQLite/DuckDB to store all past reports for trend queries
+- [ ] **Backtest engine** — compare past CP-recommended trades vs actual outcomes (win rate, avg P&L)
+- [ ] **Rolling performance dashboard** — track strategy P&L over 30/60/90 days
+- [ ] **IV vs HV divergence** — alert when implied vol significantly exceeds realized vol (selling opportunity)
+- [ ] **Correlation matrix** — show correlation between tracked tickers to avoid concentrated risk
+- [ ] **Greeks portfolio aggregation** — if holding multiple positions, show net portfolio Greeks
+
+## v3.0 — Smart Automation
+
+- [ ] **Web dashboard** — Streamlit/Gradio app for interactive exploration and filtering
+- [ ] **Multiple AI providers** — OpenAI GPT-4o, Claude Sonnet, Ollama (local LLM)
+- [ ] **Portfolio tracking** — input your positions, get personalized daily adjustments
+- [ ] **Smart alerts** — push notification when IV Rank >80%, or CP score >80, or earnings approaching
+- [ ] **Options flow integration** — aggregate unusual flow data from public sources
+- [ ] **Sector rotation signals** — track sector ETF options flow to identify rotation trends
+- [ ] **Fed/macro event calendar** — auto-flag FOMC, CPI, NFP dates with historical IV impact
 
 ## Moonshot Ideas
 
-- [ ] RAG-powered analysis referencing all past reports
-- [ ] Broker API integration (IBKR) for one-click execution
-- [ ] Options flow / dark pool data integration
-- [ ] Community-contributed strategy plugins
+- [ ] RAG-powered analysis — AI references all past reports for trend context
+- [ ] Broker API integration (IBKR/Schwab) — one-click order execution from report
+- [ ] Dark pool data integration — institutional flow signals
+- [ ] Community strategy plugins — user-contributed analysis modules
+- [ ] Mobile app — React Native app with push notifications
+- [ ] Social sentiment scoring — Reddit/X/StockTwits sentiment for each ticker
+- [ ] Gamma exposure (GEX) calculation — predict support/resistance from dealer hedging
 
 ---
 
