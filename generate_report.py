@@ -74,6 +74,37 @@ def fetch_ticker_data(symbol: str) -> dict:
         except Exception:
             continue
 
+    # --- IV Percentile Rank ---
+    iv_percentile = None
+    try:
+        hist_1y = tk.history(period="1y")
+        if not hist_1y.empty and len(hist_1y) > 30:
+            daily_returns = hist_1y["Close"].pct_change().dropna()
+            rolling_vol = daily_returns.rolling(window=30).std() * np.sqrt(252) * 100  # annualized %
+            rolling_vol = rolling_vol.dropna()
+            if len(rolling_vol) > 0:
+                min_hv = float(rolling_vol.min())
+                max_hv = float(rolling_vol.max())
+                if max_hv > min_hv:
+                    # current_avg_IV will be computed later; store hist vol stats for now
+                    iv_percentile = {"min_hv": min_hv, "max_hv": max_hv}
+    except Exception:
+        pass
+
+    # --- Earnings Calendar Auto-Detection ---
+    next_earnings = None
+    try:
+        cal = tk.calendar
+        if cal is not None and not cal.empty:
+            # tk.calendar is a DataFrame; earnings date is in the columns or index
+            # Common format: columns are dates, or there's an "Earnings Date" row
+            if hasattr(cal, 'columns') and len(cal.columns) > 0:
+                # Calendar columns are typically the next earnings date(s)
+                earn_date = pd.Timestamp(cal.columns[0])
+                next_earnings = earn_date.to_pydatetime()
+    except Exception:
+        pass
+
     return {
         "symbol": symbol,
         "price": current_price,
@@ -82,6 +113,8 @@ def fetch_ticker_data(symbol: str) -> dict:
         "history": history_prices,
         "expiries": expiries,
         "chains": chains,
+        "iv_percentile_data": iv_percentile,
+        "next_earnings": next_earnings,
     }
 
 
@@ -376,6 +409,25 @@ def generate_ticker_report(result: dict) -> str:
     else:
         iv_level = "偏低 🟢"
 
+    # --- IV Percentile Rank ---
+    iv_rank_str = ""
+    try:
+        iv_pct_data = data.get("iv_percentile_data")
+        if iv_pct_data and avg_iv > 0:
+            min_hv = iv_pct_data["min_hv"]
+            max_hv = iv_pct_data["max_hv"]
+            iv_pct_val = (avg_iv - min_hv) / (max_hv - min_hv) * 100
+            iv_pct_val = max(0.0, min(100.0, iv_pct_val))
+            if iv_pct_val < 25:
+                iv_rank_label = "偏低 🟢"
+            elif iv_pct_val <= 75:
+                iv_rank_label = "正常 🟡"
+            else:
+                iv_rank_label = "偏高 🔴"
+            iv_rank_str = f"IV Rank: {iv_pct_val:.0f}% ({iv_rank_label})"
+    except Exception:
+        pass
+
     lines = []
     lines.append(f"## {symbol}")
     lines.append("")
@@ -386,7 +438,21 @@ def generate_ticker_report(result: dict) -> str:
     lines.append(f"| 現價 | **${price:.2f}** |")
     lines.append(f"| 昨日漲跌 | {change:+.2f}% |")
     lines.append(f"| 平均 IV | {avg_iv:.1f}% ({iv_level}) |")
+    if iv_rank_str:
+        lines.append(f"| IV Percentile | {iv_rank_str} |")
     lines.append("")
+
+    # --- Earnings Warning Banner ---
+    try:
+        next_earnings = data.get("next_earnings")
+        if next_earnings:
+            days_until = (next_earnings - datetime.now()).days
+            if 0 <= days_until <= 14:
+                earn_date_str = next_earnings.strftime("%Y-%m-%d")
+                lines.append(f"> ⚠️ **財報警告**：{symbol} 將於 {earn_date_str} 發布財報（剩餘 {days_until} 天）。IV 可能大幅波動，賣方策略需謹慎。")
+                lines.append("")
+    except Exception:
+        pass
 
     # History prices
     hist = data["history"]
@@ -668,6 +734,26 @@ def main():
             content,
         )
         root_readme.write_text(content, encoding="utf-8")
+
+    # Interactive HTML report (optional, requires plotly)
+    try:
+        from html_report import generate_html_report
+
+        print("\nGenerating interactive HTML report...")
+        html_path = generate_html_report(all_results, today, REPORTS_DIR)
+        print(f"  HTML report saved to {html_path}")
+    except Exception as e:
+        print(f"  HTML report skipped: {e}")
+
+    # Telegram notification (optional, requires TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID)
+    try:
+        from telegram_notify import send_telegram_summary
+
+        report_url = f"https://github.com/laiyanlong/options-daily-report/blob/main/reports/{today}.md"
+        print("\nSending Telegram notification...")
+        send_telegram_summary(report_content, report_url, TICKERS)
+    except Exception as e:
+        print(f"  Telegram notification skipped: {e}")
 
     # Output summary for the agent
     print("\n=== SUMMARY ===")

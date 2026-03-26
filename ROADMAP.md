@@ -14,13 +14,13 @@ Current status and future plans for Options Daily Report.
 - [x] Dynamic ticker list
 - [x] Date override for backfill
 
-## Next Up (v1.1) — Help Wanted!
+## v1.1 — Completed!
 
-- [ ] **Interactive HTML report** with Plotly charts ([#contribute](CONTRIBUTING.md))
-- [ ] **Earnings calendar** auto-detection and warning
-- [ ] **IV percentile rank** (vs 52-week IV range)
-- [ ] **Telegram notification** integration
-- [ ] **Docker support** for self-hosted deployment
+- [x] **Interactive HTML report** with Plotly charts (Price History, IV Smile, CP Comparison, Delta Heatmap)
+- [x] **Earnings calendar** auto-detection and 14-day warning banner
+- [x] **IV percentile rank** (vs 52-week historical volatility range)
+- [x] **Telegram notification** integration (summary push via Bot API)
+- [x] **Docker support** for self-hosted deployment (Dockerfile + docker-compose)
 
 ## Future (v2.0)
 

@@ -45,6 +45,8 @@ jobs:
           REPORT_DATE: ${{ github.event.inputs.report_date }}
           REPORT_LANG: ${{ github.event.inputs.report_lang || 'zh' }}
           TICKERS: ${{ github.event.inputs.tickers }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python generate_report.py
 
       - name: Get report info
