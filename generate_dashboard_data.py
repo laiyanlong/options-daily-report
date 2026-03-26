@@ -1,0 +1,508 @@
+"""
+Generate dashboard/data.json for the Live Backtest Dashboard.
+Reads from SQLite database (reports/history.db) and historical reports.
+"""
+import json
+import sqlite3
+import os
+import random
+import math
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional
+
+import numpy as np
+import yfinance as yf
+
+# Path to the SQLite database managed by data_backtest.py
+DB_PATH = Path(__file__).resolve().parent.parent / "reports" / "history.db"
+
+
+# ============================================================
+# Sample data generator (used when DB is empty or missing)
+# ============================================================
+def generate_sample_data() -> dict:
+    """Generate realistic sample data for dashboard demo."""
+    random.seed(42)
+    np.random.seed(42)
+
+    tickers = ["TSLA", "AMZN", "NVDA"]
+    strategies = ["sell_put", "sell_call"]
+    today = datetime.now()
+
+    trades: list[dict] = []
+    trade_id = 1
+
+    for ticker in tickers:
+        # Assign a base price per ticker for realism
+        base_prices = {"TSLA": 250.0, "AMZN": 185.0, "NVDA": 130.0}
+        base_price = base_prices.get(ticker, 200.0)
+
+        for strategy in strategies:
+            # Win rates differ by strategy
+            win_prob = 0.75 if strategy == "sell_put" else 0.70
+            num_trades = random.randint(8, 12)
+
+            for i in range(num_trades):
+                # Spread trades over the last 60 trading days
+                days_ago = random.randint(5, 60)
+                entry_date = today - timedelta(days=days_ago)
+                # Expiry 7-30 days after entry
+                dte = random.choice([7, 14, 21, 30])
+                expiry_date = entry_date + timedelta(days=dte)
+
+                # Only backtest expired trades
+                if expiry_date >= today:
+                    continue
+
+                # Random price movement
+                price_at_entry = base_price * (1 + random.uniform(-0.08, 0.08))
+                if strategy == "sell_put":
+                    otm_pct = random.uniform(0.03, 0.08)
+                    strike = round(price_at_entry * (1 - otm_pct), 2)
+                else:
+                    otm_pct = random.uniform(0.03, 0.08)
+                    strike = round(price_at_entry * (1 + otm_pct), 2)
+
+                premium = round(random.uniform(0.8, 4.5), 2)
+
+                # Determine win/loss
+                is_win = random.random() < win_prob
+                if strategy == "sell_put":
+                    if is_win:
+                        expiry_price = round(strike + random.uniform(1, 20), 2)
+                        pnl = premium
+                    else:
+                        breach = random.uniform(1, 15)
+                        expiry_price = round(strike - breach, 2)
+                        pnl = round(premium - breach, 2)
+                else:  # sell_call
+                    if is_win:
+                        expiry_price = round(strike - random.uniform(1, 20), 2)
+                        pnl = premium
+                    else:
+                        breach = random.uniform(1, 15)
+                        expiry_price = round(strike + breach, 2)
+                        pnl = round(premium - breach, 2)
+
+                result = "win" if pnl >= 0 else "loss"
+
+                # Calculate return percentage (per contract, capital = strike * 100)
+                capital = strike * 100
+                return_pct = round((pnl / (capital / 100)) * 100, 2) if capital > 0 else 0.0
+
+                trades.append({
+                    "id": trade_id,
+                    "symbol": ticker,
+                    "strategy": strategy,
+                    "entry_date": entry_date.strftime("%Y-%m-%d"),
+                    "expiry_date": expiry_date.strftime("%Y-%m-%d"),
+                    "strike": strike,
+                    "premium": premium,
+                    "expiry_price": expiry_price,
+                    "profit_loss": round(pnl, 2),
+                    "result": result,
+                    "return_pct": return_pct,
+                })
+                trade_id += 1
+
+    # Also add a few iron condor sample trades
+    for ticker in tickers:
+        base_price = {"TSLA": 250.0, "AMZN": 185.0, "NVDA": 130.0}.get(ticker, 200.0)
+        num_ic = random.randint(3, 5)
+        for i in range(num_ic):
+            days_ago = random.randint(10, 55)
+            entry_date = today - timedelta(days=days_ago)
+            dte = random.choice([14, 21, 30])
+            expiry_date = entry_date + timedelta(days=dte)
+            if expiry_date >= today:
+                continue
+
+            price_at_entry = base_price * (1 + random.uniform(-0.05, 0.05))
+            short_put = round(price_at_entry * 0.93, 2)
+            short_call = round(price_at_entry * 1.07, 2)
+            premium = round(random.uniform(1.5, 5.0), 2)
+
+            is_win = random.random() < 0.68
+            if is_win:
+                expiry_price = round(random.uniform(short_put + 1, short_call - 1), 2)
+                pnl = premium
+            else:
+                # Breached one side
+                if random.random() < 0.5:
+                    breach = random.uniform(1, 10)
+                    expiry_price = round(short_put - breach, 2)
+                    pnl = round(premium - breach, 2)
+                else:
+                    breach = random.uniform(1, 10)
+                    expiry_price = round(short_call + breach, 2)
+                    pnl = round(premium - breach, 2)
+
+            result = "win" if pnl >= 0 else "loss"
+            capital = (short_call - short_put) * 100
+            return_pct = round((pnl / (capital / 100)) * 100, 2) if capital > 0 else 0.0
+
+            trades.append({
+                "id": trade_id,
+                "symbol": ticker,
+                "strategy": "iron_condor",
+                "entry_date": entry_date.strftime("%Y-%m-%d"),
+                "expiry_date": expiry_date.strftime("%Y-%m-%d"),
+                "strike": short_put,  # primary strike for display
+                "premium": premium,
+                "expiry_price": expiry_price,
+                "profit_loss": round(pnl, 2),
+                "result": result,
+                "return_pct": return_pct,
+                "short_put_strike": short_put,
+                "short_call_strike": short_call,
+            })
+            trade_id += 1
+
+    # Sort by entry_date
+    trades.sort(key=lambda t: t["entry_date"])
+
+    return _build_dashboard_payload(trades)
+
+
+# ============================================================
+# Core: build dashboard JSON payload from a list of trades
+# ============================================================
+def _build_dashboard_payload(trades: list[dict]) -> dict:
+    """Build the full dashboard data.json structure from backtested trades."""
+    if not trades:
+        return _empty_payload()
+
+    # --- Summary statistics ---
+    total = len(trades)
+    wins = [t for t in trades if t["result"] == "win"]
+    losses = [t for t in trades if t["result"] == "loss"]
+    n_wins = len(wins)
+    n_losses = len(losses)
+    win_rate = n_wins / total * 100 if total > 0 else 0.0
+
+    pnl_values = [t["profit_loss"] for t in trades]
+    avg_return = sum(pnl_values) / total if total > 0 else 0.0
+
+    total_profit = sum(t["profit_loss"] for t in wins)
+    total_loss_abs = abs(sum(t["profit_loss"] for t in losses))
+    profit_factor = total_profit / total_loss_abs if total_loss_abs > 0 else 999.99
+
+    # Max drawdown from cumulative P&L
+    cumulative = []
+    running = 0.0
+    for t in trades:
+        running += t["profit_loss"]
+        cumulative.append(running)
+    peak = cumulative[0]
+    max_drawdown = 0.0
+    for val in cumulative:
+        if val > peak:
+            peak = val
+        dd = peak - val
+        if dd > max_drawdown:
+            max_drawdown = dd
+
+    # Sharpe ratio (using per-trade returns as proxy for daily returns)
+    returns_arr = np.array(pnl_values)
+    if len(returns_arr) > 1 and np.std(returns_arr) > 0:
+        sharpe = float(np.mean(returns_arr) / np.std(returns_arr) * np.sqrt(252))
+    else:
+        sharpe = 0.0
+
+    # Sortino ratio (only downside deviation)
+    downside = returns_arr[returns_arr < 0]
+    if len(downside) > 1:
+        downside_std = float(np.std(downside))
+        sortino = float(np.mean(returns_arr) / downside_std * np.sqrt(252)) if downside_std > 0 else 0.0
+    else:
+        sortino = 0.0
+
+    summary = {
+        "total_trades": total,
+        "wins": n_wins,
+        "losses": n_losses,
+        "win_rate": round(win_rate, 1),
+        "avg_return": round(avg_return, 2),
+        "profit_factor": round(profit_factor, 2),
+        "max_drawdown": round(max_drawdown, 2),
+        "sharpe_ratio": round(sharpe, 2),
+        "sortino_ratio": round(sortino, 2),
+        "total_pnl": round(sum(pnl_values), 2),
+    }
+
+    # --- Cumulative P&L by date ---
+    # Group trades by entry_date, sum P&L per date
+    pnl_by_date: dict[str, float] = {}
+    for t in trades:
+        d = t["entry_date"]
+        pnl_by_date[d] = pnl_by_date.get(d, 0.0) + t["profit_loss"]
+
+    sorted_dates = sorted(pnl_by_date.keys())
+    cumulative_pnl: list[dict] = []
+    running_pnl = 0.0
+    for d in sorted_dates:
+        running_pnl += pnl_by_date[d]
+        cumulative_pnl.append({"date": d, "pnl": round(running_pnl, 2)})
+
+    # --- Cumulative P&L by strategy ---
+    strategy_names = sorted(set(t["strategy"] for t in trades))
+    cumulative_by_strategy: dict[str, list[dict]] = {}
+    for strat in strategy_names:
+        strat_trades = [t for t in trades if t["strategy"] == strat]
+        strat_by_date: dict[str, float] = {}
+        for t in strat_trades:
+            d = t["entry_date"]
+            strat_by_date[d] = strat_by_date.get(d, 0.0) + t["profit_loss"]
+        s_dates = sorted(strat_by_date.keys())
+        s_running = 0.0
+        s_cumulative: list[dict] = []
+        for d in s_dates:
+            s_running += strat_by_date[d]
+            s_cumulative.append({"date": d, "pnl": round(s_running, 2)})
+        cumulative_by_strategy[strat] = s_cumulative
+
+    # --- Monthly returns ---
+    monthly: dict[str, float] = {}
+    for t in trades:
+        month_key = t["entry_date"][:7]  # YYYY-MM
+        monthly[month_key] = monthly.get(month_key, 0.0) + t["profit_loss"]
+    monthly_returns = [
+        {"month": k, "pnl": round(v, 2)}
+        for k, v in sorted(monthly.items())
+    ]
+
+    # --- Per-ticker stats ---
+    ticker_names = sorted(set(t["symbol"] for t in trades))
+    ticker_stats: dict[str, dict] = {}
+    for ticker in ticker_names:
+        tk_trades = [t for t in trades if t["symbol"] == ticker]
+        tk_wins = [t for t in tk_trades if t["result"] == "win"]
+        tk_total = len(tk_trades)
+        ticker_stats[ticker] = {
+            "total_trades": tk_total,
+            "wins": len(tk_wins),
+            "losses": tk_total - len(tk_wins),
+            "win_rate": round(len(tk_wins) / tk_total * 100, 1) if tk_total > 0 else 0.0,
+            "total_pnl": round(sum(t["profit_loss"] for t in tk_trades), 2),
+            "avg_return": round(sum(t["profit_loss"] for t in tk_trades) / tk_total, 2) if tk_total > 0 else 0.0,
+        }
+
+    # --- Per-strategy stats ---
+    strategy_stats: dict[str, dict] = {}
+    for strat in strategy_names:
+        st_trades = [t for t in trades if t["strategy"] == strat]
+        st_wins = [t for t in st_trades if t["result"] == "win"]
+        st_total = len(st_trades)
+        strategy_stats[strat] = {
+            "total_trades": st_total,
+            "wins": len(st_wins),
+            "losses": st_total - len(st_wins),
+            "win_rate": round(len(st_wins) / st_total * 100, 1) if st_total > 0 else 0.0,
+            "total_pnl": round(sum(t["profit_loss"] for t in st_trades), 2),
+            "avg_return": round(sum(t["profit_loss"] for t in st_trades) / st_total, 2) if st_total > 0 else 0.0,
+        }
+
+    # --- Recent trades (last 20) ---
+    recent_trades = sorted(trades, key=lambda t: t["entry_date"], reverse=True)[:20]
+
+    return {
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "summary": summary,
+        "cumulative_pnl": cumulative_pnl,
+        "cumulative_by_strategy": cumulative_by_strategy,
+        "monthly_returns": monthly_returns,
+        "ticker_stats": ticker_stats,
+        "strategy_stats": strategy_stats,
+        "recent_trades": recent_trades,
+    }
+
+
+def _empty_payload() -> dict:
+    """Return an empty dashboard payload with zeroed-out fields."""
+    return {
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "summary": {
+            "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0,
+            "avg_return": 0.0, "profit_factor": 0.0, "max_drawdown": 0.0,
+            "sharpe_ratio": 0.0, "sortino_ratio": 0.0, "total_pnl": 0.0,
+        },
+        "cumulative_pnl": [],
+        "cumulative_by_strategy": {},
+        "monthly_returns": [],
+        "ticker_stats": {},
+        "strategy_stats": {},
+        "recent_trades": [],
+    }
+
+
+# ============================================================
+# Read trades from database and backtest expired ones
+# ============================================================
+def _fetch_and_backtest_trades() -> list[dict]:
+    """Read all trades from the SQLite DB and backtest expired ones.
+
+    Returns a list of trade dicts with backtest results (P&L, result, etc.).
+    """
+    if not DB_PATH.exists():
+        return []
+
+    conn = sqlite3.connect(str(DB_PATH))
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
+    # Fetch all expired trades
+    cur.execute("""
+        SELECT id, date, symbol, strategy, strike, premium_bid, iv, delta,
+               cp_score, pop, expiry_date
+        FROM trades
+        WHERE expiry_date IS NOT NULL AND expiry_date <= ?
+        ORDER BY date
+    """, (today_str,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    if not rows:
+        return []
+
+    trades: list[dict] = []
+
+    # Cache yfinance price lookups to reduce API calls
+    price_cache: dict[str, dict[str, float]] = {}
+
+    for row in rows:
+        symbol = row["symbol"]
+        strategy = row["strategy"]
+        strike = row["strike"]
+        premium = row["premium_bid"] or 0.0
+        entry_date = row["date"]
+        expiry_date = row["expiry_date"]
+
+        # Fetch expiry price (with caching)
+        expiry_price = _get_expiry_price(symbol, expiry_date, price_cache)
+        if expiry_price is None:
+            continue
+
+        # Determine win/loss and P&L
+        if strategy == "sell_put":
+            if expiry_price >= strike:
+                pnl = premium
+                result = "win"
+            else:
+                pnl = premium - (strike - expiry_price)
+                result = "loss" if pnl < 0 else "win"
+        elif strategy == "sell_call":
+            if expiry_price <= strike:
+                pnl = premium
+                result = "win"
+            else:
+                pnl = premium - (expiry_price - strike)
+                result = "loss" if pnl < 0 else "win"
+        elif strategy == "iron_condor":
+            # For iron condor, we'd need short_put and short_call strikes
+            # The DB only stores a single strike, so treat it as premium capture
+            pnl = premium
+            result = "win"
+        else:
+            pnl = premium
+            result = "win"
+
+        # Return percentage
+        capital = strike * 100 if strike > 0 else 1.0
+        return_pct = round((pnl / (capital / 100)) * 100, 2) if capital > 0 else 0.0
+
+        trades.append({
+            "id": row["id"],
+            "symbol": symbol,
+            "strategy": strategy,
+            "entry_date": entry_date,
+            "expiry_date": expiry_date,
+            "strike": strike,
+            "premium": premium,
+            "expiry_price": round(expiry_price, 2),
+            "profit_loss": round(pnl, 2),
+            "result": result,
+            "return_pct": return_pct,
+        })
+
+    return trades
+
+
+def _get_expiry_price(
+    symbol: str,
+    expiry_date: str,
+    cache: dict[str, dict[str, float]],
+) -> Optional[float]:
+    """Fetch the closing price at or near the expiry date.
+
+    Uses a cache dict to avoid redundant yfinance API calls for
+    the same symbol/date combination.
+    """
+    cache_key = f"{symbol}_{expiry_date}"
+    if cache_key in cache:
+        return cache[cache_key].get("price")
+
+    try:
+        exp_dt = datetime.strptime(expiry_date, "%Y-%m-%d")
+        start = exp_dt - timedelta(days=3)
+        end = exp_dt + timedelta(days=3)
+
+        tk = yf.Ticker(symbol)
+        hist = tk.history(
+            start=start.strftime("%Y-%m-%d"),
+            end=end.strftime("%Y-%m-%d"),
+        )
+
+        if hist.empty:
+            cache[cache_key] = {"price": None}
+            return None
+
+        # Normalize timezone
+        hist.index = hist.index.tz_localize(None) if hist.index.tz else hist.index
+
+        valid = hist[hist.index <= exp_dt]
+        if valid.empty:
+            price = float(hist["Close"].iloc[0])
+        else:
+            price = float(valid["Close"].iloc[-1])
+
+        cache[cache_key] = {"price": price}
+        return price
+    except Exception as e:
+        print(f"[dashboard] Error fetching price for {symbol} at {expiry_date}: {e}")
+        cache[cache_key] = {"price": None}
+        return None
+
+
+# ============================================================
+# Main entry point
+# ============================================================
+def generate_dashboard_data() -> dict:
+    """Generate the full dashboard data payload.
+
+    Reads from the SQLite database and backtests expired trades.
+    Falls back to sample data if the DB is empty or missing.
+
+    Returns:
+        Dict matching the dashboard data.json schema.
+    """
+    trades = _fetch_and_backtest_trades()
+
+    if trades:
+        print(f"[dashboard] Found {len(trades)} expired trades in database.")
+        return _build_dashboard_payload(trades)
+    else:
+        print("[dashboard] No trade data found — generating sample data for demo.")
+        return generate_sample_data()
+
+
+if __name__ == "__main__":
+    data = generate_dashboard_data()
+    output = Path(__file__).parent / "data.json"
+    output.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    print(f"Dashboard data written to {output}")
+    print(f"Total trades: {data['summary']['total_trades']}")
+    print(f"Win rate: {data['summary']['win_rate']:.1f}%")

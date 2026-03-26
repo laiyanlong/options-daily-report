@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options Strategy Live Backtest | DappGo</title>
+<script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-primary:   #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-card:      #1f2940;
+    --bg-card-alt:  #243050;
+    --gold:         #f5c542;
+    --blue:         #82b1ff;
+    --green:        #00e676;
+    --red:          #ff5252;
+    --yellow:       #ffd740;
+    --text:         #e0e0e0;
+    --text-muted:   #90a4ae;
+    --border:       rgba(130,177,255,.12);
+    --radius:       10px;
+    --shadow:       0 4px 24px rgba(0,0,0,.35);
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Layout ───────────────────────────────────────────── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Header ───────────────────────────────────────────── */
+  .header {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, #0f3460 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 40px 0 32px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(245,197,66,.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header h1 {
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .header h1 .accent { color: var(--gold); }
+  .header .subtitle {
+    font-size: clamp(.85rem, 1.6vw, 1.05rem);
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+  .header-meta {
+    display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;
+    font-size: .85rem; color: var(--text-muted);
+  }
+  .header-meta span { display: inline-flex; align-items: center; gap: 6px; }
+  .header-meta svg { width: 14px; height: 14px; fill: var(--text-muted); }
+
+  /* ── Section titles ───────────────────────────────────── */
+  .section-title {
+    font-size: 1.15rem; font-weight: 600; color: #fff;
+    margin: 36px 0 16px; padding-left: 14px;
+    border-left: 3px solid var(--gold);
+  }
+
+  /* ── Summary Cards ────────────────────────────────────── */
+  .cards-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 28px;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 20px;
+    box-shadow: var(--shadow);
+    transition: transform .18s, box-shadow .18s;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.45); }
+  .card .label { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
+  .card .value { font-size: 1.9rem; font-weight: 700; line-height: 1.2; }
+  .card .trend { font-size: .78rem; margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; }
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+  .neutral  { color: var(--text-muted); }
+
+  /* ── Chart containers ─────────────────────────────────── */
+  .chart-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 16px 8px;
+    margin-bottom: 20px;
+  }
+  .chart-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 20px;
+  }
+  @media (max-width: 500px) {
+    .chart-row { grid-template-columns: 1fr; }
+  }
+
+  /* ── Table ────────────────────────────────────────────── */
+  .table-wrap {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+    margin-bottom: 20px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  thead th {
+    position: sticky; top: 0;
+    background: var(--bg-card-alt);
+    color: var(--text-muted);
+    font-weight: 600; font-size: .76rem;
+    text-transform: uppercase; letter-spacing: .06em;
+    padding: 12px 14px; text-align: left;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none;
+    white-space: nowrap;
+  }
+  thead th:hover { color: var(--gold); }
+  thead th .sort-arrow { margin-left: 4px; font-size: .7rem; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+  tbody tr:hover { background: rgba(130,177,255,.05); }
+  tbody td { padding: 10px 14px; white-space: nowrap; }
+  .result-win  { color: var(--green); font-weight: 600; }
+  .result-loss { color: var(--red); font-weight: 600; }
+  .pnl-pos { color: var(--green); }
+  .pnl-neg { color: var(--red); }
+  .row-win  { border-left: 3px solid var(--green); }
+  .row-loss { border-left: 3px solid var(--red); }
+
+  /* ── Risk Metrics ─────────────────────────────────────── */
+  .risk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .risk-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .risk-card .risk-value { font-size: 1.6rem; font-weight: 700; margin: 8px 0 4px; }
+  .risk-card .risk-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+
+  /* ── Footer ───────────────────────────────────────────── */
+  .footer {
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    margin-top: 48px;
+    text-align: center;
+    font-size: .82rem;
+    color: var(--text-muted);
+  }
+  .footer p { margin-bottom: 8px; }
+  .footer .brand { color: var(--gold); font-weight: 600; }
+  .footer .disclaimer { font-style: italic; font-size: .75rem; margin-top: 12px; opacity: .7; }
+
+  /* ── Loading / Error ──────────────────────────────────── */
+  .loading-overlay {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 60vh; gap: 16px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg { color: var(--red); text-align: center; padding: 40px; font-size: 1.1rem; }
+
+  /* ── Plotly overrides ─────────────────────────────────── */
+  .js-plotly-plot .plotly .modebar { right: 8px !important; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<header class="header">
+  <div class="container">
+    <h1>Options Strategy <span class="accent">Live Backtest</span></h1>
+    <p class="subtitle">Verified historical performance of automated trade recommendations</p>
+    <div class="header-meta">
+      <span id="last-updated">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/></svg>
+        Loading...
+      </span>
+      <span>
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        <a href="https://github.com/yanli-ql/options-daily-report" target="_blank" rel="noopener">View Repository</a>
+      </span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════ MAIN ═══════════════════ -->
+<main class="container" id="app">
+  <div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <span>Loading dashboard data...</span>
+  </div>
+</main>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer class="footer">
+  <div class="container">
+    <p>Data updated daily via GitHub Actions</p>
+    <p>Powered by <a href="https://dappgo.com" target="_blank" rel="noopener" class="brand">DappGo</a> &mdash; AI Automation for Enterprise</p>
+    <p><a href="https://github.com/yanli-ql/options-daily-report" target="_blank" rel="noopener">options-daily-report</a></p>
+    <p class="disclaimer">Past performance does not guarantee future results. This dashboard is for informational purposes only and does not constitute financial advice.</p>
+  </div>
+</footer>
+
+<script>
+// ── Plotly shared layout defaults ──────────────────
+const PLOTLY_LAYOUT_BASE = {
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor:  'rgba(0,0,0,0)',
+  font: { family: 'SF Pro Display, -apple-system, sans-serif', color: '#e0e0e0', size: 12 },
+  margin: { l: 56, r: 24, t: 36, b: 48 },
+  xaxis: { gridcolor: 'rgba(130,177,255,.08)', zerolinecolor: 'rgba(130,177,255,.12)' },
+  yaxis: { gridcolor: 'rgba(130,177,255,.08)', zerolinecolor: 'rgba(130,177,255,.12)' },
+  legend: { bgcolor: 'rgba(0,0,0,0)', font: { size: 11 } },
+  hoverlabel: { bgcolor: '#1f2940', bordercolor: '#82b1ff', font: { size: 12 } },
+};
+
+const PLOTLY_CONFIG = {
+  responsive: true,
+  displayModeBar: true,
+  modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+  displaylogo: false,
+};
+
+const STRATEGY_COLORS = {
+  'sell_put':     '#82b1ff',
+  'sell_call':    '#f5c542',
+  'iron_condor':  '#ce93d8',
+  'Sell Put':     '#82b1ff',
+  'Sell Call':    '#f5c542',
+  'Iron Condor':  '#ce93d8',
+};
+
+// ── Utility helpers ────────────────────────────────
+function fmt(n, decimals = 1) {
+  if (n == null) return '---';
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+function fmtDollar(n) {
+  if (n == null) return '---';
+  const sign = n >= 0 ? '+' : '';
+  return sign + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function trendClass(v) { return v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral'; }
+function winRateColor(wr) { return wr >= 60 ? '#00e676' : wr >= 50 ? '#ffd740' : '#ff5252'; }
+
+// ── Render functions ───────────────────────────────
+
+function renderSummaryCards(s) {
+  return `
+    <div class="cards-row">
+      <div class="card">
+        <div class="label">Total Trades</div>
+        <div class="value" style="color:#fff">${s.total_trades}</div>
+        <div class="trend neutral">${s.wins}W / ${s.losses}L</div>
+      </div>
+      <div class="card">
+        <div class="label">Win Rate</div>
+        <div class="value ${trendClass(s.win_rate - 50)}">${fmt(s.win_rate)}%</div>
+        <div class="trend ${trendClass(s.win_rate - 50)}">${s.win_rate >= 50 ? '&#9650;' : '&#9660;'} ${s.win_rate >= 50 ? 'Above' : 'Below'} breakeven</div>
+      </div>
+      <div class="card">
+        <div class="label">Avg Return</div>
+        <div class="value ${trendClass(s.avg_return_pct)}">${s.avg_return_pct > 0 ? '+' : ''}${fmt(s.avg_return_pct)}%</div>
+        <div class="trend ${trendClass(s.avg_return_pct)}">Per trade</div>
+      </div>
+      <div class="card">
+        <div class="label">Profit Factor</div>
+        <div class="value ${trendClass(s.profit_factor - 1)}">${fmt(s.profit_factor)}</div>
+        <div class="trend ${trendClass(s.profit_factor - 1)}">${s.profit_factor >= 1.5 ? '&#9733; Strong' : s.profit_factor >= 1 ? 'Profitable' : 'Needs work'}</div>
+      </div>
+    </div>`;
+}
+
+function renderCumulativePnL(data) {
+  const traces = [];
+  const strategies = [
+    { key: 'sell_put',    name: 'Sell Put' },
+    { key: 'sell_call',   name: 'Sell Call' },
+    { key: 'iron_condor', name: 'Iron Condor' },
+  ];
+  for (const st of strategies) {
+    if (!data[st.key]) continue;
+    traces.push({
+      x: data.dates,
+      y: data[st.key],
+      name: st.name,
+      type: 'scatter',
+      mode: 'lines',
+      fill: 'tozeroy',
+      fillcolor: STRATEGY_COLORS[st.key] + '18',
+      line: { color: STRATEGY_COLORS[st.key], width: 2.5 },
+      hovertemplate: '%{x|%b %d}<br>' + st.name + ': $%{y:,.0f}<extra></extra>',
+    });
+  }
+  const layout = {
+    ...PLOTLY_LAYOUT_BASE,
+    title: { text: 'Cumulative P&L', font: { size: 15, color: '#fff' }, x: 0.01 },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'P&L ($)', tickprefix: '$' },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis },
+    legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.15 },
+    hovermode: 'x unified',
+  };
+  Plotly.newPlot('chart-cpnl', traces, layout, PLOTLY_CONFIG);
+}
+
+function renderWinRateByStrategy(stats) {
+  const names = Object.keys(stats);
+  const rates = names.map(n => stats[n].win_rate);
+  const colors = rates.map(winRateColor);
+  const trace = {
+    x: names, y: rates, type: 'bar',
+    marker: { color: colors, line: { color: colors.map(c => c + 'cc'), width: 1 } },
+    text: rates.map(r => fmt(r) + '%'), textposition: 'outside',
+    textfont: { color: '#e0e0e0', size: 12 },
+    hovertemplate: '%{x}<br>Win Rate: %{y:.1f}%<br>Trades: %{customdata}<extra></extra>',
+    customdata: names.map(n => stats[n].trades),
+  };
+  const layout = {
+    ...PLOTLY_LAYOUT_BASE,
+    title: { text: 'Win Rate by Strategy', font: { size: 15, color: '#fff' }, x: 0.01 },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Win Rate (%)', range: [0, 100] },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis },
+    showlegend: false,
+  };
+  Plotly.newPlot('chart-wr-strategy', [trace], layout, PLOTLY_CONFIG);
+}
+
+function renderWinRateByTicker(stats) {
+  const tickers = Object.keys(stats).sort((a, b) => stats[b].win_rate - stats[a].win_rate);
+  const rates = tickers.map(t => stats[t].win_rate);
+  const colors = rates.map(winRateColor);
+  const trace = {
+    x: tickers, y: rates, type: 'bar',
+    marker: { color: colors },
+    text: rates.map(r => fmt(r) + '%'), textposition: 'outside',
+    textfont: { color: '#e0e0e0', size: 12 },
+    hovertemplate: '%{x}<br>Win Rate: %{y:.1f}%<br>Trades: %{customdata}<extra></extra>',
+    customdata: tickers.map(t => stats[t].trades),
+  };
+  const layout = {
+    ...PLOTLY_LAYOUT_BASE,
+    title: { text: 'Win Rate by Ticker', font: { size: 15, color: '#fff' }, x: 0.01 },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Win Rate (%)', range: [0, 100] },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis },
+    showlegend: false,
+  };
+  Plotly.newPlot('chart-wr-ticker', [trace], layout, PLOTLY_CONFIG);
+}
+
+function renderMonthlyHeatmap(monthly) {
+  const strategies = Object.keys(monthly).filter(k => k !== 'months');
+  const z = strategies.map(s => monthly[s]);
+  const trace = {
+    z, x: monthly.months, y: strategies,
+    type: 'heatmap',
+    colorscale: [
+      [0,   '#b71c1c'],
+      [0.3, '#ff5252'],
+      [0.5, '#424242'],
+      [0.7, '#00c853'],
+      [1,   '#00e676'],
+    ],
+    zmid: 0,
+    text: z.map(row => row.map(v => (v >= 0 ? '+' : '') + fmt(v) + '%')),
+    texttemplate: '%{text}',
+    textfont: { size: 12 },
+    hovertemplate: '%{y} | %{x}<br>Return: %{z:.1f}%<extra></extra>',
+    colorbar: { title: 'Return %', titlefont: { color: '#e0e0e0' }, tickfont: { color: '#e0e0e0' } },
+  };
+  const layout = {
+    ...PLOTLY_LAYOUT_BASE,
+    title: { text: 'Monthly Returns Heatmap', font: { size: 15, color: '#fff' }, x: 0.01 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, side: 'bottom' },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, autorange: 'reversed' },
+  };
+  Plotly.newPlot('chart-heatmap', [trace], layout, PLOTLY_CONFIG);
+}
+
+function renderRecentTrades(trades) {
+  const cols = [
+    { key: 'date',     label: 'Date' },
+    { key: 'symbol',   label: 'Symbol' },
+    { key: 'strategy', label: 'Strategy' },
+    { key: 'strike',   label: 'Strike',  fmt: v => '$' + Number(v).toLocaleString() },
+    { key: 'premium',  label: 'Premium', fmt: v => '$' + Number(v).toFixed(2) },
+    { key: 'expiry',   label: 'Expiry' },
+    { key: 'result',   label: 'Result',  fmt: v => `<span class="result-${v}">${v.toUpperCase()}</span>` },
+    { key: 'pnl',      label: 'P&L',     fmt: v => `<span class="${v >= 0 ? 'pnl-pos' : 'pnl-neg'}">${fmtDollar(v)}</span>` },
+  ];
+
+  let sortCol = null;
+  let sortAsc = true;
+
+  function build(data) {
+    const thead = cols.map(c => {
+      const arrow = sortCol === c.key ? (sortAsc ? ' &#9650;' : ' &#9660;') : '';
+      return `<th data-col="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
+    }).join('');
+    const tbody = data.slice(0, 20).map(t => {
+      const cls = t.result === 'win' ? 'row-win' : 'row-loss';
+      const tds = cols.map(c => `<td>${c.fmt ? c.fmt(t[c.key]) : t[c.key]}</td>`).join('');
+      return `<tr class="${cls}">${tds}</tr>`;
+    }).join('');
+    return `<table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  const wrap = document.getElementById('trades-table');
+  let sorted = [...trades];
+
+  function render() {
+    wrap.innerHTML = build(sorted);
+    wrap.querySelectorAll('th').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.col;
+        if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = true; }
+        sorted.sort((a, b) => {
+          let va = a[col], vb = b[col];
+          if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+          if (va < vb) return sortAsc ? -1 : 1;
+          if (va > vb) return sortAsc ? 1 : -1;
+          return 0;
+        });
+        render();
+      });
+    });
+  }
+  render();
+}
+
+function renderRiskMetrics(s) {
+  const metrics = [
+    { label: 'Max Drawdown',     value: fmt(s.max_drawdown_pct) + '%', cls: 'negative' },
+    { label: 'Sharpe Ratio',     value: fmt(s.sharpe_ratio, 2),        cls: trendClass(s.sharpe_ratio) },
+    { label: 'Sortino Ratio',    value: fmt(s.sortino_ratio, 2),       cls: trendClass(s.sortino_ratio) },
+    { label: 'Avg Win / Loss',   value: fmtDollar(s.avg_win) + ' / ' + fmtDollar(s.avg_loss), cls: 'neutral' },
+  ];
+  return metrics.map(m => `
+    <div class="risk-card">
+      <div class="risk-label">${m.label}</div>
+      <div class="risk-value ${m.cls}">${m.value}</div>
+    </div>
+  `).join('');
+}
+
+// ── Main bootstrap ─────────────────────────────────
+async function init() {
+  const app = document.getElementById('app');
+  try {
+    const resp = await fetch('data.json');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+    const data = await resp.json();
+
+    // Update header timestamp
+    document.getElementById('last-updated').innerHTML =
+      `<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:#90a4ae"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/></svg>
+       Last updated: ${data.last_updated}`;
+
+    // Build the dashboard DOM
+    app.innerHTML = `
+      <!-- Performance Summary -->
+      <h2 class="section-title">Performance Summary</h2>
+      ${renderSummaryCards(data.summary)}
+
+      <!-- Cumulative P&L -->
+      <h2 class="section-title">Cumulative P&L</h2>
+      <div class="chart-wrap"><div id="chart-cpnl" style="height:400px"></div></div>
+
+      <!-- Win Rate Charts -->
+      <h2 class="section-title">Win Rate Analysis</h2>
+      <div class="chart-row">
+        <div class="chart-wrap"><div id="chart-wr-strategy" style="height:340px"></div></div>
+        <div class="chart-wrap"><div id="chart-wr-ticker" style="height:340px"></div></div>
+      </div>
+
+      <!-- Monthly Returns Heatmap -->
+      <h2 class="section-title">Monthly Returns</h2>
+      <div class="chart-wrap"><div id="chart-heatmap" style="height:300px"></div></div>
+
+      <!-- Recent Trades -->
+      <h2 class="section-title">Recent Trades</h2>
+      <div class="table-wrap" id="trades-table"></div>
+
+      <!-- Risk Metrics -->
+      <h2 class="section-title">Risk Metrics</h2>
+      <div class="risk-grid">${renderRiskMetrics(data.summary)}</div>
+    `;
+
+    // Render Plotly charts (must happen after DOM insertion)
+    renderCumulativePnL(data.cumulative_pnl);
+    renderWinRateByStrategy(data.strategy_stats);
+    renderWinRateByTicker(data.ticker_stats);
+    renderMonthlyHeatmap(data.monthly_returns);
+    renderRecentTrades(data.recent_trades);
+
+    // Resize charts on window resize
+    window.addEventListener('resize', () => {
+      ['chart-cpnl', 'chart-wr-strategy', 'chart-wr-ticker', 'chart-heatmap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) Plotly.Plots.resize(el);
+      });
+    });
+
+  } catch (err) {
+    app.innerHTML = `
+      <div class="error-msg">
+        <p style="font-size:2rem;margin-bottom:12px">&#9888;</p>
+        <p>Failed to load dashboard data</p>
+        <p style="font-size:.85rem;margin-top:8px;color:#90a4ae">${err.message}</p>
+        <p style="font-size:.82rem;margin-top:16px;color:#90a4ae">
+          Make sure <code>data.json</code> exists in the same directory as this page.
+        </p>
+      </div>`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

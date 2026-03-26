@@ -1,0 +1,641 @@
+{
+  "generated_at": "2026-03-26 04:20:10",
+  "summary": {
+    "total_trades": 49,
+    "wins": 39,
+    "losses": 10,
+    "win_rate": 79.6,
+    "avg_return": 0.89,
+    "profit_factor": 1.84,
+    "max_drawdown": 21.47,
+    "sharpe_ratio": 3.98,
+    "sortino_ratio": 4.45,
+    "total_pnl": 43.82
+  },
+  "cumulative_pnl": [
+    {
+      "date": "2026-01-25",
+      "pnl": 7.51
+    },
+    {
+      "date": "2026-01-27",
+      "pnl": 6.8
+    },
+    {
+      "date": "2026-01-30",
+      "pnl": 7.96
+    },
+    {
+      "date": "2026-02-01",
+      "pnl": 11.48
+    },
+    {
+      "date": "2026-02-02",
+      "pnl": 9.61
+    },
+    {
+      "date": "2026-02-03",
+      "pnl": 19.96
+    },
+    {
+      "date": "2026-02-04",
+      "pnl": 23.94
+    },
+    {
+      "date": "2026-02-06",
+      "pnl": 25.83
+    },
+    {
+      "date": "2026-02-07",
+      "pnl": 33.1
+    },
+    {
+      "date": "2026-02-11",
+      "pnl": 37.08
+    },
+    {
+      "date": "2026-02-13",
+      "pnl": 31.59
+    },
+    {
+      "date": "2026-02-14",
+      "pnl": 33.96
+    },
+    {
+      "date": "2026-02-16",
+      "pnl": 38.21
+    },
+    {
+      "date": "2026-02-17",
+      "pnl": 32.61
+    },
+    {
+      "date": "2026-02-18",
+      "pnl": 32.71
+    },
+    {
+      "date": "2026-02-20",
+      "pnl": 32.07
+    },
+    {
+      "date": "2026-02-21",
+      "pnl": 32.95
+    },
+    {
+      "date": "2026-02-23",
+      "pnl": 29.38
+    },
+    {
+      "date": "2026-02-25",
+      "pnl": 33.08
+    },
+    {
+      "date": "2026-02-27",
+      "pnl": 26.53
+    },
+    {
+      "date": "2026-02-28",
+      "pnl": 29.2
+    },
+    {
+      "date": "2026-03-01",
+      "pnl": 27.88
+    },
+    {
+      "date": "2026-03-02",
+      "pnl": 30.06
+    },
+    {
+      "date": "2026-03-03",
+      "pnl": 19.68
+    },
+    {
+      "date": "2026-03-04",
+      "pnl": 22.04
+    },
+    {
+      "date": "2026-03-05",
+      "pnl": 27.58
+    },
+    {
+      "date": "2026-03-06",
+      "pnl": 38.18
+    },
+    {
+      "date": "2026-03-07",
+      "pnl": 41.57
+    },
+    {
+      "date": "2026-03-15",
+      "pnl": 42.86
+    },
+    {
+      "date": "2026-03-18",
+      "pnl": 43.82
+    }
+  ],
+  "cumulative_by_strategy": {
+    "iron_condor": [
+      {
+        "date": "2026-02-02",
+        "pnl": -4.29
+      },
+      {
+        "date": "2026-02-07",
+        "pnl": -2.34
+      },
+      {
+        "date": "2026-02-20",
+        "pnl": -3.81
+      },
+      {
+        "date": "2026-02-23",
+        "pnl": -7.38
+      },
+      {
+        "date": "2026-02-27",
+        "pnl": -13.93
+      },
+      {
+        "date": "2026-03-01",
+        "pnl": -17.22
+      },
+      {
+        "date": "2026-03-02",
+        "pnl": -15.04
+      }
+    ],
+    "sell_call": [
+      {
+        "date": "2026-01-25",
+        "pnl": 3.89
+      },
+      {
+        "date": "2026-01-27",
+        "pnl": 4.86
+      },
+      {
+        "date": "2026-01-30",
+        "pnl": 6.02
+      },
+      {
+        "date": "2026-02-02",
+        "pnl": 8.98
+      },
+      {
+        "date": "2026-02-03",
+        "pnl": 12.27
+      },
+      {
+        "date": "2026-02-04",
+        "pnl": 16.25
+      },
+      {
+        "date": "2026-02-07",
+        "pnl": 21.57
+      },
+      {
+        "date": "2026-02-13",
+        "pnl": 14.98
+      },
+      {
+        "date": "2026-02-14",
+        "pnl": 17.35
+      },
+      {
+        "date": "2026-02-16",
+        "pnl": 21.6
+      },
+      {
+        "date": "2026-02-20",
+        "pnl": 22.43
+      },
+      {
+        "date": "2026-02-21",
+        "pnl": 23.31
+      },
+      {
+        "date": "2026-02-28",
+        "pnl": 25.98
+      },
+      {
+        "date": "2026-03-01",
+        "pnl": 27.95
+      },
+      {
+        "date": "2026-03-03",
+        "pnl": 17.57
+      },
+      {
+        "date": "2026-03-05",
+        "pnl": 23.11
+      },
+      {
+        "date": "2026-03-06",
+        "pnl": 27.33
+      },
+      {
+        "date": "2026-03-15",
+        "pnl": 28.62
+      },
+      {
+        "date": "2026-03-18",
+        "pnl": 29.58
+      }
+    ],
+    "sell_put": [
+      {
+        "date": "2026-01-25",
+        "pnl": 3.62
+      },
+      {
+        "date": "2026-01-27",
+        "pnl": 1.94
+      },
+      {
+        "date": "2026-02-01",
+        "pnl": 5.46
+      },
+      {
+        "date": "2026-02-02",
+        "pnl": 4.92
+      },
+      {
+        "date": "2026-02-03",
+        "pnl": 11.98
+      },
+      {
+        "date": "2026-02-06",
+        "pnl": 13.87
+      },
+      {
+        "date": "2026-02-11",
+        "pnl": 17.85
+      },
+      {
+        "date": "2026-02-13",
+        "pnl": 18.95
+      },
+      {
+        "date": "2026-02-17",
+        "pnl": 13.35
+      },
+      {
+        "date": "2026-02-18",
+        "pnl": 13.45
+      },
+      {
+        "date": "2026-02-25",
+        "pnl": 17.15
+      },
+      {
+        "date": "2026-03-04",
+        "pnl": 19.51
+      },
+      {
+        "date": "2026-03-06",
+        "pnl": 25.89
+      },
+      {
+        "date": "2026-03-07",
+        "pnl": 29.28
+      }
+    ]
+  },
+  "monthly_returns": [
+    {
+      "month": "2026-01",
+      "pnl": 7.96
+    },
+    {
+      "month": "2026-02",
+      "pnl": 21.24
+    },
+    {
+      "month": "2026-03",
+      "pnl": 14.62
+    }
+  ],
+  "ticker_stats": {
+    "AMZN": {
+      "total_trades": 16,
+      "wins": 11,
+      "losses": 5,
+      "win_rate": 68.8,
+      "total_pnl": -1.45,
+      "avg_return": -0.09
+    },
+    "NVDA": {
+      "total_trades": 21,
+      "wins": 16,
+      "losses": 5,
+      "win_rate": 76.2,
+      "total_pnl": 12.76,
+      "avg_return": 0.61
+    },
+    "TSLA": {
+      "total_trades": 12,
+      "wins": 12,
+      "losses": 0,
+      "win_rate": 100.0,
+      "total_pnl": 32.51,
+      "avg_return": 2.71
+    }
+  },
+  "strategy_stats": {
+    "iron_condor": {
+      "total_trades": 7,
+      "wins": 2,
+      "losses": 5,
+      "win_rate": 28.6,
+      "total_pnl": -15.04,
+      "avg_return": -2.15
+    },
+    "sell_call": {
+      "total_trades": 23,
+      "wins": 21,
+      "losses": 2,
+      "win_rate": 91.3,
+      "total_pnl": 29.58,
+      "avg_return": 1.29
+    },
+    "sell_put": {
+      "total_trades": 19,
+      "wins": 16,
+      "losses": 3,
+      "win_rate": 84.2,
+      "total_pnl": 29.28,
+      "avg_return": 1.54
+    }
+  },
+  "recent_trades": [
+    {
+      "id": 41,
+      "symbol": "NVDA",
+      "strategy": "sell_call",
+      "entry_date": "2026-03-18",
+      "expiry_date": "2026-03-25",
+      "strike": 142.28,
+      "premium": 0.96,
+      "expiry_price": 138.79,
+      "profit_loss": 0.96,
+      "result": "win",
+      "return_pct": 0.67
+    },
+    {
+      "id": 36,
+      "symbol": "NVDA",
+      "strategy": "sell_call",
+      "entry_date": "2026-03-15",
+      "expiry_date": "2026-03-22",
+      "strike": 138.01,
+      "premium": 1.29,
+      "expiry_price": 135.7,
+      "profit_loss": 1.29,
+      "result": "win",
+      "return_pct": 0.93
+    },
+    {
+      "id": 2,
+      "symbol": "TSLA",
+      "strategy": "sell_put",
+      "entry_date": "2026-03-07",
+      "expiry_date": "2026-03-14",
+      "strike": 235.84,
+      "premium": 3.39,
+      "expiry_price": 245.37,
+      "profit_loss": 3.39,
+      "result": "win",
+      "return_pct": 1.44
+    },
+    {
+      "id": 1,
+      "symbol": "TSLA",
+      "strategy": "sell_put",
+      "entry_date": "2026-03-06",
+      "expiry_date": "2026-03-20",
+      "strike": 227.31,
+      "premium": 3.54,
+      "expiry_price": 239.53,
+      "profit_loss": 3.54,
+      "result": "win",
+      "return_pct": 1.56
+    },
+    {
+      "id": 8,
+      "symbol": "TSLA",
+      "strategy": "sell_call",
+      "entry_date": "2026-03-06",
+      "expiry_date": "2026-03-20",
+      "strike": 259.3,
+      "premium": 4.22,
+      "expiry_price": 254.13,
+      "profit_loss": 4.22,
+      "result": "win",
+      "return_pct": 1.63
+    },
+    {
+      "id": 27,
+      "symbol": "NVDA",
+      "strategy": "sell_put",
+      "entry_date": "2026-03-06",
+      "expiry_date": "2026-03-13",
+      "strike": 119.4,
+      "premium": 2.84,
+      "expiry_price": 139.39,
+      "profit_loss": 2.84,
+      "result": "win",
+      "return_pct": 2.38
+    },
+    {
+      "id": 34,
+      "symbol": "NVDA",
+      "strategy": "sell_call",
+      "entry_date": "2026-03-05",
+      "expiry_date": "2026-03-19",
+      "strike": 139.63,
+      "premium": 1.78,
+      "expiry_price": 126.37,
+      "profit_loss": 1.78,
+      "result": "win",
+      "return_pct": 1.27
+    },
+    {
+      "id": 39,
+      "symbol": "NVDA",
+      "strategy": "sell_call",
+      "entry_date": "2026-03-05",
+      "expiry_date": "2026-03-12",
+      "strike": 147.38,
+      "premium": 1.38,
+      "expiry_price": 142.38,
+      "profit_loss": 1.38,
+      "result": "win",
+      "return_pct": 0.94
+    },
+    {
+      "id": 42,
+      "symbol": "NVDA",
+      "strategy": "sell_call",
+      "entry_date": "2026-03-05",
+      "expiry_date": "2026-03-19",
+      "strike": 142.79,
+      "premium": 2.38,
+      "expiry_price": 140.36,
+      "profit_loss": 2.38,
+      "result": "win",
+      "return_pct": 1.67
+    },
+    {
+      "id": 3,
+      "symbol": "TSLA",
+      "strategy": "sell_put",
+      "entry_date": "2026-03-04",
+      "expiry_date": "2026-03-11",
+      "strike": 250.46,
+      "premium": 2.36,
+      "expiry_price": 255.55,
+      "profit_loss": 2.36,
+      "result": "win",
+      "return_pct": 0.94
+    },
+    {
+      "id": 37,
+      "symbol": "NVDA",
+      "strategy": "sell_call",
+      "entry_date": "2026-03-03",
+      "expiry_date": "2026-03-17",
+      "strike": 136.07,
+      "premium": 1.92,
+      "expiry_price": 148.37,
+      "profit_loss": -10.38,
+      "result": "loss",
+      "return_pct": -7.63
+    },
+    {
+      "id": 48,
+      "symbol": "NVDA",
+      "strategy": "iron_condor",
+      "entry_date": "2026-03-02",
+      "expiry_date": "2026-03-16",
+      "strike": 115.14,
+      "premium": 2.18,
+      "expiry_price": 129.39,
+      "profit_loss": 2.18,
+      "result": "win",
+      "return_pct": 12.58,
+      "short_put_strike": 115.14,
+      "short_call_strike": 132.47
+    },
+    {
+      "id": 9,
+      "symbol": "TSLA",
+      "strategy": "sell_call",
+      "entry_date": "2026-03-01",
+      "expiry_date": "2026-03-08",
+      "strike": 246.72,
+      "premium": 1.97,
+      "expiry_price": 241.71,
+      "profit_loss": 1.97,
+      "result": "win",
+      "return_pct": 0.8
+    },
+    {
+      "id": 45,
+      "symbol": "AMZN",
+      "strategy": "iron_condor",
+      "entry_date": "2026-03-01",
+      "expiry_date": "2026-03-15",
+      "strike": 180.24,
+      "premium": 4.34,
+      "expiry_price": 172.61,
+      "profit_loss": -3.29,
+      "result": "loss",
+      "return_pct": -12.12,
+      "short_put_strike": 180.24,
+      "short_call_strike": 207.38
+    },
+    {
+      "id": 40,
+      "symbol": "NVDA",
+      "strategy": "sell_call",
+      "entry_date": "2026-02-28",
+      "expiry_date": "2026-03-14",
+      "strike": 143.63,
+      "premium": 2.67,
+      "expiry_price": 125.37,
+      "profit_loss": 2.67,
+      "result": "win",
+      "return_pct": 1.86
+    },
+    {
+      "id": 49,
+      "symbol": "NVDA",
+      "strategy": "iron_condor",
+      "entry_date": "2026-02-27",
+      "expiry_date": "2026-03-20",
+      "strike": 122.61,
+      "premium": 2.9,
+      "expiry_price": 150.52,
+      "profit_loss": -6.55,
+      "result": "loss",
+      "return_pct": -35.48,
+      "short_put_strike": 122.61,
+      "short_call_strike": 141.07
+    },
+    {
+      "id": 29,
+      "symbol": "NVDA",
+      "strategy": "sell_put",
+      "entry_date": "2026-02-25",
+      "expiry_date": "2026-03-04",
+      "strike": 134.03,
+      "premium": 3.7,
+      "expiry_price": 143.07,
+      "profit_loss": 3.7,
+      "result": "win",
+      "return_pct": 2.76
+    },
+    {
+      "id": 46,
+      "symbol": "AMZN",
+      "strategy": "iron_condor",
+      "entry_date": "2026-02-23",
+      "expiry_date": "2026-03-16",
+      "strike": 177.25,
+      "premium": 4.52,
+      "expiry_price": 169.16,
+      "profit_loss": -3.57,
+      "result": "loss",
+      "return_pct": -13.38,
+      "short_put_strike": 177.25,
+      "short_call_strike": 203.93
+    },
+    {
+      "id": 21,
+      "symbol": "AMZN",
+      "strategy": "sell_call",
+      "entry_date": "2026-02-21",
+      "expiry_date": "2026-02-28",
+      "strike": 183.43,
+      "premium": 0.88,
+      "expiry_price": 171.25,
+      "profit_loss": 0.88,
+      "result": "win",
+      "return_pct": 0.48
+    },
+    {
+      "id": 35,
+      "symbol": "NVDA",
+      "strategy": "sell_call",
+      "entry_date": "2026-02-20",
+      "expiry_date": "2026-03-13",
+      "strike": 149.59,
+      "premium": 0.83,
+      "expiry_price": 137.89,
+      "profit_loss": 0.83,
+      "result": "win",
+      "return_pct": 0.55
+    }
+  ]
+}
