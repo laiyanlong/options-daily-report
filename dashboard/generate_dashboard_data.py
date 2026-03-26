@@ -218,6 +218,9 @@ def _build_dashboard_payload(trades: list[dict]) -> dict:
     else:
         sortino = 0.0
 
+    avg_win = float(np.mean([t["profit_loss"] for t in wins])) if wins else 0.0
+    avg_loss = float(np.mean([t["profit_loss"] for t in losses])) if losses else 0.0
+
     summary = {
         "total_trades": total,
         "wins": n_wins,
@@ -229,48 +232,39 @@ def _build_dashboard_payload(trades: list[dict]) -> dict:
         "sharpe_ratio": round(sharpe, 2),
         "sortino_ratio": round(sortino, 2),
         "total_pnl": round(sum(pnl_values), 2),
+        "avg_win": round(avg_win, 2),
+        "avg_loss": round(avg_loss, 2),
     }
 
-    # --- Cumulative P&L by date ---
-    # Group trades by entry_date, sum P&L per date
-    pnl_by_date: dict[str, float] = {}
-    for t in trades:
-        d = t["entry_date"]
-        pnl_by_date[d] = pnl_by_date.get(d, 0.0) + t["profit_loss"]
-
-    sorted_dates = sorted(pnl_by_date.keys())
-    cumulative_pnl: list[dict] = []
-    running_pnl = 0.0
-    for d in sorted_dates:
-        running_pnl += pnl_by_date[d]
-        cumulative_pnl.append({"date": d, "pnl": round(running_pnl, 2)})
-
-    # --- Cumulative P&L by strategy ---
+    # --- Cumulative P&L by strategy (format: {dates: [], sell_put: [], ...}) ---
     strategy_names = sorted(set(t["strategy"] for t in trades))
-    cumulative_by_strategy: dict[str, list[dict]] = {}
-    for strat in strategy_names:
-        strat_trades = [t for t in trades if t["strategy"] == strat]
-        strat_by_date: dict[str, float] = {}
-        for t in strat_trades:
-            d = t["entry_date"]
-            strat_by_date[d] = strat_by_date.get(d, 0.0) + t["profit_loss"]
-        s_dates = sorted(strat_by_date.keys())
-        s_running = 0.0
-        s_cumulative: list[dict] = []
-        for d in s_dates:
-            s_running += strat_by_date[d]
-            s_cumulative.append({"date": d, "pnl": round(s_running, 2)})
-        cumulative_by_strategy[strat] = s_cumulative
+    # Collect all unique dates
+    all_dates = sorted(set(t["entry_date"] for t in trades))
 
-    # --- Monthly returns ---
-    monthly: dict[str, float] = {}
+    # Build per-strategy cumulative P&L aligned to all_dates
+    strat_running: dict[str, float] = {s: 0.0 for s in strategy_names}
+    strat_pnl_by_date: dict[str, dict[str, float]] = {}
+    for d in all_dates:
+        for s in strategy_names:
+            day_pnl = sum(t["profit_loss"] for t in trades if t["entry_date"] == d and t["strategy"] == s)
+            strat_running[s] += day_pnl
+        strat_pnl_by_date[d] = {s: round(strat_running[s], 2) for s in strategy_names}
+
+    cumulative_pnl: dict = {"dates": all_dates}
+    for s in strategy_names:
+        cumulative_pnl[s] = [strat_pnl_by_date[d][s] for d in all_dates]
+
+    # --- Monthly returns (format: {months: [], "Sell Put": [], ...}) ---
+    monthly_by_strat: dict[str, dict[str, float]] = {s: {} for s in strategy_names}
     for t in trades:
-        month_key = t["entry_date"][:7]  # YYYY-MM
-        monthly[month_key] = monthly.get(month_key, 0.0) + t["profit_loss"]
-    monthly_returns = [
-        {"month": k, "pnl": round(v, 2)}
-        for k, v in sorted(monthly.items())
-    ]
+        month_key = t["entry_date"][:7]
+        s = t["strategy"]
+        monthly_by_strat[s][month_key] = monthly_by_strat[s].get(month_key, 0.0) + t["profit_loss"]
+
+    all_months = sorted(set(t["entry_date"][:7] for t in trades))
+    monthly_returns: dict = {"months": all_months}
+    for s in strategy_names:
+        monthly_returns[s] = [round(monthly_by_strat[s].get(m, 0.0), 2) for m in all_months]
 
     # --- Per-ticker stats ---
     ticker_names = sorted(set(t["symbol"] for t in trades))
@@ -280,7 +274,7 @@ def _build_dashboard_payload(trades: list[dict]) -> dict:
         tk_wins = [t for t in tk_trades if t["result"] == "win"]
         tk_total = len(tk_trades)
         ticker_stats[ticker] = {
-            "total_trades": tk_total,
+            "trades": tk_total,
             "wins": len(tk_wins),
             "losses": tk_total - len(tk_wins),
             "win_rate": round(len(tk_wins) / tk_total * 100, 1) if tk_total > 0 else 0.0,
@@ -295,7 +289,7 @@ def _build_dashboard_payload(trades: list[dict]) -> dict:
         st_wins = [t for t in st_trades if t["result"] == "win"]
         st_total = len(st_trades)
         strategy_stats[strat] = {
-            "total_trades": st_total,
+            "trades": st_total,
             "wins": len(st_wins),
             "losses": st_total - len(st_wins),
             "win_rate": round(len(st_wins) / st_total * 100, 1) if st_total > 0 else 0.0,
@@ -303,14 +297,26 @@ def _build_dashboard_payload(trades: list[dict]) -> dict:
             "avg_return": round(sum(t["profit_loss"] for t in st_trades) / st_total, 2) if st_total > 0 else 0.0,
         }
 
-    # --- Recent trades (last 20) ---
-    recent_trades = sorted(trades, key=lambda t: t["entry_date"], reverse=True)[:20]
+    # --- Recent trades (last 20, mapped to dashboard keys) ---
+    sorted_recent = sorted(trades, key=lambda t: t["entry_date"], reverse=True)[:20]
+    recent_trades = [
+        {
+            "date": t["entry_date"],
+            "symbol": t["symbol"],
+            "strategy": t["strategy"],
+            "strike": t["strike"],
+            "premium": t["premium"],
+            "expiry": t["expiry_date"],
+            "result": t["result"],
+            "pnl": t["profit_loss"],
+        }
+        for t in sorted_recent
+    ]
 
     return {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "last_updated": datetime.now().strftime("%Y-%m-%d"),
         "summary": summary,
         "cumulative_pnl": cumulative_pnl,
-        "cumulative_by_strategy": cumulative_by_strategy,
         "monthly_returns": monthly_returns,
         "ticker_stats": ticker_stats,
         "strategy_stats": strategy_stats,
@@ -321,15 +327,15 @@ def _build_dashboard_payload(trades: list[dict]) -> dict:
 def _empty_payload() -> dict:
     """Return an empty dashboard payload with zeroed-out fields."""
     return {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "last_updated": datetime.now().strftime("%Y-%m-%d"),
         "summary": {
             "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0,
             "avg_return": 0.0, "profit_factor": 0.0, "max_drawdown": 0.0,
             "sharpe_ratio": 0.0, "sortino_ratio": 0.0, "total_pnl": 0.0,
+            "avg_win": 0.0, "avg_loss": 0.0,
         },
-        "cumulative_pnl": [],
-        "cumulative_by_strategy": {},
-        "monthly_returns": [],
+        "cumulative_pnl": {"dates": [], "sell_put": [], "sell_call": [], "iron_condor": []},
+        "monthly_returns": {"months": []},
         "ticker_stats": {},
         "strategy_stats": {},
         "recent_trades": [],
