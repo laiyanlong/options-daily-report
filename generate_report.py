@@ -594,6 +594,26 @@ def main():
 
     report_lines.append(generate_final_summary(all_results))
 
+    # AI market commentary (optional, requires ANTHROPIC_API_KEY)
+    try:
+        from ai_analysis import generate_ai_commentary
+
+        print("\nGenerating AI market commentary...")
+        quant_report = "\n".join(report_lines)
+        ai_commentary = generate_ai_commentary(quant_report, TICKERS)
+        report_lines.append("")
+        report_lines.append("---")
+        report_lines.append("")
+        report_lines.append("## 🤖 AI 市場解讀（Claude）")
+        report_lines.append("")
+        report_lines.append(ai_commentary)
+        report_lines.append("")
+        report_lines.append("> *以上 AI 分析由 Claude (Anthropic) 自動產生，僅供參考，不構成投資建議。*")
+        report_lines.append("")
+        print("  AI commentary added.")
+    except Exception as e:
+        print(f"  AI commentary skipped: {e}")
+
     # Write report
     report_content = "\n".join(report_lines)
     report_path.write_text(report_content, encoding="utf-8")
