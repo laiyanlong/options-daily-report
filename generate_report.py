@@ -105,6 +105,20 @@ def fetch_ticker_data(symbol: str) -> dict:
     except Exception:
         pass
 
+    # --- v1.2 Options Intelligence ---
+    pc_ratio = None
+    max_pain_data = None
+    unusual = None
+    exp_move = None
+    try:
+        from options_intelligence import put_call_ratio, max_pain, unusual_activity, expected_move
+        pc_ratio = put_call_ratio(tk)
+        max_pain_data = max_pain(tk)
+        unusual = unusual_activity(tk)
+        exp_move = expected_move(tk)
+    except Exception:
+        pass
+
     return {
         "symbol": symbol,
         "price": current_price,
@@ -115,6 +129,10 @@ def fetch_ticker_data(symbol: str) -> dict:
         "chains": chains,
         "iv_percentile_data": iv_percentile,
         "next_earnings": next_earnings,
+        "pc_ratio": pc_ratio,
+        "max_pain": max_pain_data,
+        "unusual_activity": unusual,
+        "expected_move": exp_move,
     }
 
 
@@ -454,6 +472,52 @@ def generate_ticker_report(result: dict) -> str:
     except Exception:
         pass
 
+    # --- v1.2 Options Intelligence Section ---
+    try:
+        pc_ratio = data.get("pc_ratio")
+        max_pain_data = data.get("max_pain")
+        exp_move = data.get("expected_move")
+        unusual = data.get("unusual_activity")
+
+        has_intel = pc_ratio or max_pain_data or exp_move or unusual
+        if has_intel:
+            lines.append("### 選擇權情報")
+            lines.append("")
+            lines.append("| 指標 | 數值 |")
+            lines.append("|------|------|")
+
+            if pc_ratio:
+                lines.append(f"| Put/Call Volume Ratio | {pc_ratio['volume_ratio']:.2f} ({pc_ratio['signal']}) |")
+                lines.append(f"| Put/Call OI Ratio | {pc_ratio['oi_ratio']:.2f} |")
+
+            if max_pain_data:
+                lines.append(f"| Max Pain | ${max_pain_data['max_pain_price']:.2f} ({max_pain_data['direction']} {max_pain_data['distance_pct']:.1f}%) |")
+
+            if exp_move:
+                lines.append(f"| Expected Move | ±${exp_move['expected_move_dollar']:.2f} (±{exp_move['expected_move_pct']:.1f}%) |")
+                lines.append(f"| Expected Range | ${exp_move['lower_bound']:.2f} - ${exp_move['upper_bound']:.2f} |")
+
+            lines.append("")
+
+            if unusual:
+                lines.append("**異常選擇權活動**")
+                lines.append("")
+                lines.append("| Type | Strike | Volume | OI | Vol/OI | IV |")
+                lines.append("|------|--------|--------|-----|--------|-----|")
+                for u in unusual:
+                    iv_str = f"{u['iv']:.1f}%" if u.get("iv") is not None else "N/A"
+                    lines.append(
+                        f"| {u['type']} "
+                        f"| ${u['strike']:.2f} "
+                        f"| {u['volume']:,} "
+                        f"| {u['oi']:,} "
+                        f"| {u['vol_oi_ratio']:.1f} "
+                        f"| {iv_str} |"
+                    )
+                lines.append("")
+    except Exception:
+        pass
+
     # History prices
     hist = data["history"]
     if hist:
@@ -523,6 +587,60 @@ def generate_ticker_report(result: dict) -> str:
             lines.append(f"- **推薦**：Sell Put 較划算（CP {best_put['cp']:.1f} > {best_call['cp']:.1f}）")
         else:
             lines.append(f"- **推薦**：Sell Call 較划算（CP {best_call['cp']:.1f} > {best_put['cp']:.1f}）")
+
+    # --- v1.2 Trade Quality Analysis ---
+    try:
+        from options_intelligence import probability_of_profit, spread_quality
+
+        lines.append("")
+        lines.append("### 五、交易品質分析")
+        lines.append("")
+
+        # POP for top 3 puts and calls
+        top_puts = sorted(all_puts, key=lambda x: x["cp"], reverse=True)[:3]
+        top_calls = sorted(all_calls, key=lambda x: x["cp"], reverse=True)[:3]
+
+        if top_puts or top_calls:
+            lines.append("**獲利機率 (POP)**")
+            lines.append("")
+            lines.append("| 策略 | Strike | OTM% | CP | POP |")
+            lines.append("|------|--------|------|-----|-----|")
+
+            for e in top_puts:
+                try:
+                    pop = probability_of_profit(e["strike"], price, e["days"], e["iv"], "put")
+                    pop_str = f"{pop:.1f}%"
+                except Exception:
+                    pop_str = "N/A"
+                lines.append(f"| Sell Put | ${e['strike']:.2f} | {e['otm_pct']:+.1f}% | {e['cp']:.1f} | {pop_str} |")
+
+            for e in top_calls:
+                try:
+                    pop = probability_of_profit(e["strike"], price, e["days"], e["iv"], "call")
+                    pop_str = f"{pop:.1f}%"
+                except Exception:
+                    pop_str = "N/A"
+                lines.append(f"| Sell Call | ${e['strike']:.2f} | {e['otm_pct']:+.1f}% | {e['cp']:.1f} | {pop_str} |")
+
+            lines.append("")
+
+        # Spread quality for top 3 trades
+        top_all = sorted(all_puts + all_calls, key=lambda x: x["cp"], reverse=True)[:3]
+        if top_all:
+            try:
+                sq = spread_quality(top_all)
+                if sq:
+                    lines.append("**Bid-Ask Spread 品質**")
+                    lines.append("")
+                    lines.append("| Strike | Spread% | 品質 |")
+                    lines.append("|--------|---------|------|")
+                    for s in sq:
+                        lines.append(f"| ${s['strike']:.2f} | {s['spread_pct']:.1f}% | {s['quality']} |")
+                    lines.append("")
+            except Exception:
+                pass
+    except Exception:
+        pass
 
     lines.append("")
     lines.append("---")
@@ -609,6 +727,61 @@ def generate_final_summary(all_results: list) -> str:
         lines.append(f"- **如果只能選一筆交易**：**{top['_symbol']} {trade_type}** Strike ${top['strike']:.2f}（{top['otm_pct']:+.1f}% OTM）| 年化 {top['annualized']:.1f}% | CP {top['cp']:.1f}")
 
     lines.append("")
+
+    # --- v1.2 Options Intelligence Overview ---
+    try:
+        intel_rows = []
+        for r in all_results:
+            d = r["data"]
+            symbol = r["symbol"]
+            pc = d.get("pc_ratio")
+            mp = d.get("max_pain")
+            em = d.get("expected_move")
+            intel_rows.append({"symbol": symbol, "pc": pc, "mp": mp, "em": em})
+
+        has_any_intel = any(row["pc"] or row["mp"] or row["em"] for row in intel_rows)
+        if has_any_intel:
+            lines.append("### 📡 選擇權情報總覽")
+            lines.append("")
+
+            # P/C Ratio comparison
+            pc_rows = [row for row in intel_rows if row["pc"]]
+            if pc_rows:
+                lines.append("**Put/Call Ratio 比較**")
+                lines.append("")
+                lines.append("| 股票 | Volume Ratio | OI Ratio | 訊號 |")
+                lines.append("|------|-------------|----------|------|")
+                for row in pc_rows:
+                    pc = row["pc"]
+                    lines.append(f"| {row['symbol']} | {pc['volume_ratio']:.2f} | {pc['oi_ratio']:.2f} | {pc['signal']} |")
+                lines.append("")
+
+            # Max Pain comparison
+            mp_rows = [row for row in intel_rows if row["mp"]]
+            if mp_rows:
+                lines.append("**Max Pain 比較**")
+                lines.append("")
+                lines.append("| 股票 | Max Pain | 現價 | 方向 | 距離 |")
+                lines.append("|------|----------|------|------|------|")
+                for row in mp_rows:
+                    mp = row["mp"]
+                    lines.append(f"| {row['symbol']} | ${mp['max_pain_price']:.2f} | ${mp['current_price']:.2f} | {mp['direction']} | {mp['distance_pct']:.1f}% |")
+                lines.append("")
+
+            # Expected Move comparison
+            em_rows = [row for row in intel_rows if row["em"]]
+            if em_rows:
+                lines.append("**Expected Move 比較**")
+                lines.append("")
+                lines.append("| 股票 | Expected Move | 預期範圍 |")
+                lines.append("|------|--------------|----------|")
+                for row in em_rows:
+                    em = row["em"]
+                    lines.append(f"| {row['symbol']} | ±${em['expected_move_dollar']:.2f} (±{em['expected_move_pct']:.1f}%) | ${em['lower_bound']:.2f} - ${em['upper_bound']:.2f} |")
+                lines.append("")
+    except Exception:
+        pass
+
     lines.append("### ⚠️ 風險提示")
     lines.append("")
     lines.append("- 以上分析基於歷史數據和 Black-Scholes 模型，實際交易請考慮流動性和 bid-ask spread")

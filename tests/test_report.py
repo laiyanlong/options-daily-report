@@ -419,7 +419,7 @@ class TestFetchTickerDataStructure:
         except Exception:
             pytest.skip("Network unavailable or Yahoo Finance API error")
 
-        expected_keys = {
+        required_keys = {
             "symbol",
             "price",
             "prev_close",
@@ -430,7 +430,7 @@ class TestFetchTickerDataStructure:
             "iv_percentile_data",
             "next_earnings",
         }
-        assert expected_keys == set(data.keys())
+        assert required_keys.issubset(set(data.keys()))
         assert data["symbol"] == "AAPL"
         assert isinstance(data["price"], (int, float))
         assert isinstance(data["expiries"], list)
@@ -484,3 +484,67 @@ class TestIvPercentileCalculation:
         iv_pct_val = (avg_iv - min_hv) / (max_hv - min_hv) * 100
         iv_pct_val = max(0.0, min(100.0, iv_pct_val))
         assert iv_pct_val == 100.0
+
+
+# ---------------------------------------------------------------------------
+# 13. v1.2 Options Intelligence tests
+# ---------------------------------------------------------------------------
+class TestProbabilityOfProfit:
+    """Test POP calculation."""
+
+    def test_sell_put_otm_has_high_pop(self):
+        from options_intelligence import probability_of_profit
+
+        # Selling a put 10% OTM should have > 50% POP
+        pop = probability_of_profit(350, 386, 30, 42, "put")
+        assert 50 < pop < 100
+
+    def test_sell_call_otm_has_high_pop(self):
+        from options_intelligence import probability_of_profit
+
+        pop = probability_of_profit(420, 386, 30, 42, "call")
+        assert 50 < pop < 100
+
+    def test_atm_put_pop_around_50(self):
+        from options_intelligence import probability_of_profit
+
+        pop = probability_of_profit(386, 386, 30, 42, "put")
+        assert 40 < pop < 60
+
+    def test_zero_days_returns_sensible(self):
+        from options_intelligence import probability_of_profit
+
+        pop = probability_of_profit(350, 386, 0, 42, "put")
+        # With 0 days, should still return a number (100 if OTM)
+        assert isinstance(pop, float)
+
+
+class TestSpreadQuality:
+    """Test bid-ask spread quality evaluation."""
+
+    def test_excellent_spread(self):
+        from options_intelligence import spread_quality
+
+        result = spread_quality([{"strike": 360, "bid": 5.00, "ask": 5.10}])
+        assert len(result) == 1
+        assert result[0]["quality"] == "Excellent"
+        assert result[0]["spread_pct"] < 5
+
+    def test_poor_spread(self):
+        from options_intelligence import spread_quality
+
+        result = spread_quality([{"strike": 360, "bid": 0.10, "ask": 0.50}])
+        assert len(result) == 1
+        assert result[0]["quality"] == "Poor"
+
+    def test_zero_bid_handled(self):
+        from options_intelligence import spread_quality
+
+        result = spread_quality([{"strike": 360, "bid": 0, "ask": 0.50}])
+        assert len(result) == 1
+
+    def test_empty_list(self):
+        from options_intelligence import spread_quality
+
+        result = spread_quality([])
+        assert result == []
