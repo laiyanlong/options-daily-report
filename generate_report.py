@@ -932,6 +932,101 @@ def generate_final_summary(all_results: list) -> str:
     except Exception:
         pass
 
+    # --- v2.1 IV/HV Divergence ---
+    try:
+        from data_backtest import iv_hv_divergence
+        lines.append("### 📊 IV vs HV 分析")
+        lines.append("")
+        lines.append("| 股票 | 當前 IV | HV 30d | IV/HV Ratio | 訊號 |")
+        lines.append("|------|--------|--------|-------------|------|")
+        for r in all_results:
+            ivs = [e["iv"] for exp in r["expiries"] for e in exp["sell_puts"] + exp["sell_calls"] if e["iv"] > 0]
+            avg_iv = sum(ivs) / len(ivs) if ivs else 0
+            div = iv_hv_divergence(r["symbol"], avg_iv)
+            if div:
+                lines.append(f"| {r['symbol']} | {div['current_iv']:.1f}% | {div['hv_30d']:.1f}% | {div['iv_hv_ratio']:.2f} | {div['signal']} |")
+        lines.append("")
+    except Exception:
+        pass
+
+    # --- v2.1 Correlation Matrix ---
+    try:
+        from data_backtest import correlation_matrix
+        symbols = [r["symbol"] for r in all_results]
+        corr = correlation_matrix(symbols)
+        if corr:
+            lines.append("### 🔗 標的相關性矩陣")
+            lines.append("")
+            lines.append(f"**多元化評分**：{corr['diversification_score']:.2f}（越高越分散）")
+            lines.append("")
+            header = "| | " + " | ".join(symbols) + " |"
+            sep = "|---|" + "|".join(["---"] * len(symbols)) + "|"
+            lines.append(header)
+            lines.append(sep)
+            for s1 in symbols:
+                row = f"| **{s1}** |"
+                for s2 in symbols:
+                    val = corr["matrix"].get(s1, {}).get(s2, 0)
+                    row += f" {val:.2f} |"
+                lines.append(row)
+            if corr.get("high_corr_pairs"):
+                lines.append("")
+                pairs_str = ", ".join([f"{p[0]}/{p[1]}({p[2]:.2f})" for p in corr["high_corr_pairs"]])
+                lines.append(f"⚠️ **高相關性**：{pairs_str}")
+            lines.append("")
+    except Exception:
+        pass
+
+    # --- v3.0 Macro Events ---
+    try:
+        from smart_automation import get_upcoming_events, get_event_impact_warning
+        events = get_upcoming_events(7)
+        if events:
+            lines.append("### 📅 本週總經事件")
+            lines.append("")
+            lines.append("| 日期 | 事件 | 影響程度 |")
+            lines.append("|------|------|----------|")
+            for ev in events:
+                lines.append(f"| {ev['date']} | {ev['event']} | {ev['impact']} |")
+            lines.append("")
+        warning = get_event_impact_warning(datetime.now().strftime("%Y-%m-%d"))
+        if warning:
+            lines.append(f"> {warning}")
+            lines.append("")
+    except Exception:
+        pass
+
+    # --- v3.0 Smart Alerts ---
+    try:
+        from smart_automation import check_alerts
+        tickers_data = [{"symbol": r["symbol"], "data": r["data"], "expiries": r["expiries"]} for r in all_results]
+        alerts = check_alerts(tickers_data)
+        if alerts:
+            lines.append("### 🚨 智慧警報")
+            lines.append("")
+            for a in alerts[:8]:
+                icon = "🔴" if a["severity"] == "high" else "🟡" if a["severity"] == "medium" else "🟢"
+                lines.append(f"- {icon} **{a['ticker']}** — {a['message']}")
+            lines.append("")
+    except Exception:
+        pass
+
+    # --- v3.1 Risk Summary ---
+    try:
+        from risk_management import calculate_var, scenario_analysis
+        symbols = [r["symbol"] for r in all_results]
+        var_result = calculate_var(symbols)
+        if var_result:
+            lines.append("### 🛡️ 風險評估")
+            lines.append("")
+            lines.append(f"- **1 日 VaR (95%)**：${var_result['var_1day']:,.0f}（基於 $100K 組合）")
+            lines.append(f"- **1 週 VaR**：${var_result['var_1week']:,.0f}")
+            lines.append(f"- **CVaR（條件風險）**：${var_result['cvar']:,.0f}")
+            lines.append(f"- **最大單日損失（1年）**：{var_result['worst_day']:.1f}%")
+            lines.append("")
+    except Exception:
+        pass
+
     lines.append("### ⚠️ 風險提示")
     lines.append("")
     lines.append("- 以上分析基於歷史數據和 Black-Scholes 模型，實際交易請考慮流動性和 bid-ask spread")
@@ -1077,6 +1172,23 @@ def main():
         send_telegram_summary(report_content, report_url, TICKERS)
     except Exception as e:
         print(f"  Telegram notification skipped: {e}")
+
+    # v2.1: Save to database and export trade journal
+    try:
+        from data_backtest import save_trade_recommendations, export_trade_journal, export_daily_summary_csv
+
+        print("\nSaving to historical database...")
+        save_trade_recommendations(today, TICKERS, all_results)
+        print("  Database updated.")
+
+        print("Exporting trade journal...")
+        journal_path = export_trade_journal(today, all_results, REPORTS_DIR)
+        if journal_path:
+            print(f"  Trade journal: {journal_path}")
+
+        export_daily_summary_csv(today, all_results, REPORTS_DIR)
+    except Exception as e:
+        print(f"  Data export skipped: {e}")
 
     # Output summary for the agent
     print("\n=== SUMMARY ===")
