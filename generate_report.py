@@ -604,11 +604,11 @@ def main():
         report_lines.append("")
         report_lines.append("---")
         report_lines.append("")
-        report_lines.append("## 🤖 AI 市場解讀（Claude）")
+        report_lines.append("## 🤖 AI 市場解讀（Gemini）")
         report_lines.append("")
         report_lines.append(ai_commentary)
         report_lines.append("")
-        report_lines.append("> *以上 AI 分析由 Claude (Anthropic) 自動產生，僅供參考，不構成投資建議。*")
+        report_lines.append("> *以上 AI 分析由 Gemini (Google) 自動產生，僅供參考，不構成投資建議。*")
         report_lines.append("")
         print("  AI commentary added.")
     except Exception as e:
