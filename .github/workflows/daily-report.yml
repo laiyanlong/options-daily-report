@@ -64,6 +64,7 @@ jobs:
           git config user.email "actions@github.com"
           git add reports/ README.md
           git commit -m "📊 Daily options report ${{ steps.report.outputs.date }}" || echo "Nothing to commit"
+          git pull --rebase origin main || true
           git push origin main
 
       - name: Build email body
