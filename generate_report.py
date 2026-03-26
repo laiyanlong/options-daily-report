@@ -19,7 +19,10 @@ from scipy.stats import norm
 # ============================================================
 # Configuration
 # ============================================================
-TICKERS = ["TSLA", "AMZN", "NVDA"]
+# Tickers: override via TICKERS env var (comma-separated) or default list
+_tickers_env = os.environ.get("TICKERS", "").strip()
+TICKERS = [t.strip().upper() for t in _tickers_env.split(",") if t.strip()] if _tickers_env else ["TSLA", "AMZN", "NVDA"]
+
 OTM_PCTS = [5, 6, 7, 8, 9, 10]
 NUM_EXPIRIES = 3
 RISK_FREE_RATE = 5.0  # annual %

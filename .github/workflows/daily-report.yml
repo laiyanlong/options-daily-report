@@ -14,6 +14,10 @@ on:
         description: 'Report language: zh (繁體中文) or en (English)'
         required: false
         default: 'zh'
+      tickers:
+        description: 'Comma-separated stock tickers (e.g. TSLA,AMZN,NVDA,AAPL)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -40,6 +44,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           REPORT_DATE: ${{ github.event.inputs.report_date }}
           REPORT_LANG: ${{ github.event.inputs.report_lang || 'zh' }}
+          TICKERS: ${{ github.event.inputs.tickers }}
         run: python generate_report.py
 
       - name: Get report info
@@ -76,7 +81,7 @@ jobs:
           cat > /tmp/email_body.html << HTMLEOF
           <html><body>
           <h2>📊 每日選擇權策略報告 — ${REPORT_DATE}</h2>
-          <p><strong>標的：</strong>TSLA, AMZN, NVDA</p>
+          <p><strong>標的：</strong>$(head -5 "$REPORT_FILE" | grep '分析標的' | sed 's/.*：//' || echo 'TSLA, AMZN, NVDA')</p>
           <hr>
           <h3>🔗 閱讀完整報告</h3>
           <p><a href="${REPORT_URL}">👉 點此在 GitHub 上閱讀完整報告（含表格）</a></p>
@@ -106,7 +111,7 @@ jobs:
           secure: true
           username: laiyanlong@gmail.com
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "📊 選擇權日報 ${{ steps.report.outputs.date }} — TSLA / AMZN / NVDA"
+          subject: "📊 選擇權日報 ${{ steps.report.outputs.date }}"
           to: laiyanlong@gmail.com
           from: "Options Report Bot <laiyanlong@gmail.com>"
           html_body: file:///tmp/email_body.html

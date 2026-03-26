@@ -163,15 +163,16 @@ When triggering manually, you can customize:
 |-----------|---------|---------|
 | `report_date` | today | Any `YYYY-MM-DD` date |
 | `report_lang` | `zh` | `zh` (繁體中文) or `en` (English) |
+| `tickers` | `TSLA,AMZN,NVDA` | Comma-separated stock tickers (e.g. `TSLA,AAPL,GOOGL,META`) |
 
 ---
 
 ## Configuration
 
-Edit `generate_report.py` to customize:
+Edit `generate_report.py` to change defaults, or override at runtime via environment variables:
 
 ```python
-TICKERS = ["TSLA", "AMZN", "NVDA"]   # Add/remove tickers
+TICKERS = ["TSLA", "AMZN", "NVDA"]   # Default tickers (override via TICKERS env)
 OTM_PCTS = [5, 6, 7, 8, 9, 10]       # OTM percentage range
 NUM_EXPIRIES = 3                       # Number of expiry dates to analyze
 RISK_FREE_RATE = 5.0                   # Annual risk-free rate (%)
@@ -184,6 +185,17 @@ RISK_FREE_RATE = 5.0                   # Annual risk-free rate (%)
 | `GEMINI_API_KEY` | — | Google Gemini API key |
 | `REPORT_DATE` | today | Override report date |
 | `REPORT_LANG` | `zh` | Report language (`zh` / `en`) |
+| `TICKERS` | `TSLA,AMZN,NVDA` | Comma-separated stock tickers |
+
+### Examples
+
+```bash
+# Analyze different tickers
+TICKERS=AAPL,GOOGL,META python generate_report.py
+
+# Combine all options
+TICKERS=TSLA,AAPL REPORT_LANG=en REPORT_DATE=2026-03-24 python generate_report.py
+```
 
 ---
 
@@ -306,6 +318,7 @@ REPORT_LANG=en python generate_report.py
 |------|--------|------|
 | `report_date` | 今天 | 任意 `YYYY-MM-DD` |
 | `report_lang` | `zh` | `zh`（繁體中文）或 `en`（English）|
+| `tickers` | `TSLA,AMZN,NVDA` | 逗號分隔的股票代號（如 `TSLA,AAPL,GOOGL`）|
 
 ### 費用
 
