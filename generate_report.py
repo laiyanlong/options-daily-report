@@ -119,6 +119,26 @@ def fetch_ticker_data(symbol: str) -> dict:
     except Exception:
         pass
 
+    # --- v2.0 Multi-Strategy ---
+    multi_strat = None
+    try:
+        from multi_strategy import iron_condor, vertical_spread, strangle_straddle, wheel_strategy, calendar_spread
+        first_exp = expiries[0] if expiries else None
+        if first_exp and first_exp in chains:
+            puts_df = chains[first_exp]["puts"]
+            calls_df = chains[first_exp]["calls"]
+            days = max((datetime.strptime(first_exp, "%Y-%m-%d") - datetime.now()).days, 1)
+            multi_strat = {
+                "iron_condor": iron_condor(puts_df, calls_df, current_price, days),
+                "bull_put": vertical_spread(puts_df, current_price, days, "bull_put"),
+                "bear_call": vertical_spread(calls_df, current_price, days, "bear_call"),
+                "strangle_straddle": strangle_straddle(puts_df, calls_df, current_price, days),
+                "wheel": wheel_strategy(puts_df, current_price, days),
+                "calendar": calendar_spread(tk, current_price),
+            }
+    except Exception:
+        pass
+
     return {
         "symbol": symbol,
         "price": current_price,
@@ -133,6 +153,7 @@ def fetch_ticker_data(symbol: str) -> dict:
         "max_pain": max_pain_data,
         "unusual_activity": unusual,
         "expected_move": exp_move,
+        "multi_strategy": multi_strat,
     }
 
 
@@ -637,6 +658,135 @@ def generate_ticker_report(result: dict) -> str:
                     for s in sq:
                         lines.append(f"| ${s['strike']:.2f} | {s['spread_pct']:.1f}% | {s['quality']} |")
                     lines.append("")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # --- v2.0 Multi-Strategy Analysis ---
+    try:
+        ms = data.get("multi_strategy")
+        if ms:
+            lines.append("")
+            lines.append("### 六、多腳策略分析")
+            lines.append("")
+
+            # Iron Condor
+            ic = ms.get("iron_condor")
+            if ic:
+                lines.append("**Iron Condor（鐵兀鷹）**")
+                lines.append("")
+                lines.append("| 項目 | 數值 |")
+                lines.append("|------|------|")
+                lines.append(f"| Short Put | ${ic.get('short_put', 0):.2f} |")
+                lines.append(f"| Long Put | ${ic.get('long_put', 0):.2f} |")
+                lines.append(f"| Short Call | ${ic.get('short_call', 0):.2f} |")
+                lines.append(f"| Long Call | ${ic.get('long_call', 0):.2f} |")
+                lines.append(f"| Net Credit | ${ic.get('net_credit', 0):.2f} |")
+                lines.append(f"| Max Profit | ${ic.get('max_profit', 0):.2f} |")
+                lines.append(f"| Max Loss | ${ic.get('max_loss', 0):.2f} |")
+                max_loss = ic.get('max_loss', 0)
+                max_profit = ic.get('max_profit', 0)
+                rr = f"1:{max_loss / max_profit:.1f}" if max_profit > 0 else "N/A"
+                lines.append(f"| Risk/Reward | {rr} |")
+                be_low = ic.get('breakeven_low', 0)
+                be_high = ic.get('breakeven_high', 0)
+                lines.append(f"| Breakeven | ${be_low:.2f} - ${be_high:.2f} |")
+                pop_val = ic.get('pop', 0)
+                lines.append(f"| POP | {pop_val:.1f}% |")
+                lines.append("")
+
+            # Vertical Spreads (Bull Put + Bear Call)
+            bp = ms.get("bull_put")
+            bc = ms.get("bear_call")
+            if bp or bc:
+                lines.append("**Vertical Spreads（垂直價差）**")
+                lines.append("")
+                lines.append("| 項目 | Bull Put Spread | Bear Call Spread |")
+                lines.append("|------|----------------|-----------------|")
+
+                def _vs(d, key, fmt_str="${:.2f}"):
+                    if d and key in d:
+                        return fmt_str.format(d[key])
+                    return "N/A"
+
+                lines.append(f"| Short Strike | {_vs(bp, 'short_strike')} | {_vs(bc, 'short_strike')} |")
+                lines.append(f"| Long Strike | {_vs(bp, 'long_strike')} | {_vs(bc, 'long_strike')} |")
+                lines.append(f"| Net Credit | {_vs(bp, 'net_credit')} | {_vs(bc, 'net_credit')} |")
+                lines.append(f"| Max Profit | {_vs(bp, 'max_profit')} | {_vs(bc, 'max_profit')} |")
+                lines.append(f"| Max Loss | {_vs(bp, 'max_loss')} | {_vs(bc, 'max_loss')} |")
+                lines.append(f"| Breakeven | {_vs(bp, 'breakeven')} | {_vs(bc, 'breakeven')} |")
+                lines.append(f"| POP | {_vs(bp, 'pop', '{:.1f}%')} | {_vs(bc, 'pop', '{:.1f}%')} |")
+                lines.append("")
+
+            # Strangle/Straddle
+            ss = ms.get("strangle_straddle")
+            if ss:
+                lines.append("**Strangle / Straddle（勒式 / 跨式）**")
+                lines.append("")
+                lines.append("| 項目 | Straddle | Strangle |")
+                lines.append("|------|----------|----------|")
+                strad = ss.get("straddle", {})
+                strang = ss.get("strangle", {})
+                lines.append(f"| Put Strike | {_vs(strad, 'put_strike')} | {_vs(strang, 'put_strike')} |")
+                lines.append(f"| Call Strike | {_vs(strad, 'call_strike')} | {_vs(strang, 'call_strike')} |")
+                lines.append(f"| Total Credit | {_vs(strad, 'total_credit')} | {_vs(strang, 'total_credit')} |")
+                lines.append(f"| Breakeven Low | {_vs(strad, 'breakeven_low')} | {_vs(strang, 'breakeven_low')} |")
+                lines.append(f"| Breakeven High | {_vs(strad, 'breakeven_high')} | {_vs(strang, 'breakeven_high')} |")
+                lines.append(f"| POP | {_vs(strad, 'pop', '{:.1f}%')} | {_vs(strang, 'pop', '{:.1f}%')} |")
+                lines.append("")
+
+            # Wheel Strategy
+            wh = ms.get("wheel")
+            if wh:
+                lines.append("**Wheel Strategy（轉輪策略）進場分析**")
+                lines.append("")
+                lines.append("| 項目 | 數值 |")
+                lines.append("|------|------|")
+                lines.append(f"| Entry Put Strike | ${wh.get('strike', 0):.2f} |")
+                lines.append(f"| Put Premium | ${wh.get('premium', 0):.2f} |")
+                lines.append(f"| Cost Basis if Assigned | ${wh.get('cost_basis', 0):.2f} |")
+                lines.append(f"| Annualized Yield | {wh.get('annualized_yield', 0):.1f}% |")
+                lines.append(f"| Breakeven | ${wh.get('breakeven', 0):.2f} |")
+                lines.append(f"| Days to Expiry | {wh.get('days', 0)} |")
+                lines.append("")
+
+            # Calendar Spread
+            cal = ms.get("calendar")
+            if cal and cal.get("opportunity"):
+                lines.append("**Calendar Spread（日曆價差）**")
+                lines.append("")
+                lines.append("| 項目 | 數值 |")
+                lines.append("|------|------|")
+                lines.append(f"| Strike | ${cal.get('strike', 0):.2f} |")
+                lines.append(f"| Front Month IV | {cal.get('front_iv', 0):.1f}% |")
+                lines.append(f"| Back Month IV | {cal.get('back_iv', 0):.1f}% |")
+                lines.append(f"| IV Difference | {cal.get('iv_diff', 0):.1f}% |")
+                lines.append(f"| Net Debit | ${cal.get('net_debit', 0):.2f} |")
+                lines.append("")
+
+            # Position Sizing
+            try:
+                from multi_strategy import position_sizing
+                # Use best put or call max_loss for sizing reference
+                ref_max_loss = 0
+                if ic and ic.get("max_loss", 0) > 0:
+                    ref_max_loss = ic["max_loss"]
+                elif bp and bp.get("max_loss", 0) > 0:
+                    ref_max_loss = bp["max_loss"]
+                if ref_max_loss > 0:
+                    ps = position_sizing(price, 5000, ref_max_loss)
+                    if ps:
+                        lines.append("**Position Sizing（部位大小建議）**")
+                        lines.append("")
+                        lines.append("| 項目 | 數值 |")
+                        lines.append("|------|------|")
+                        lines.append(f"| Max Risk Budget | $5,000 |")
+                        lines.append(f"| Strategy Max Loss/Contract | ${ref_max_loss:.2f} |")
+                        lines.append(f"| Recommended Contracts | {ps.get('contracts', 0)} |")
+                        lines.append(f"| Total Risk | ${ps.get('total_risk', 0):.2f} |")
+                        lines.append(f"| Capital Required | ${ps.get('capital_required', 0):,.2f} |")
+                        lines.append("")
             except Exception:
                 pass
     except Exception:
