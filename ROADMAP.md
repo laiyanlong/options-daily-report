@@ -83,6 +83,21 @@
 - [x] Collaborative watchlists — shared ticker lists with team annotations
 - [x] Strategy marketplace — browse and clone proven strategy configurations
 
+### v5.0 — Community-Driven Intelligence
+
+- [ ] **Live Backtest Dashboard** — GitHub Pages site showing verified historical win rates, cumulative P&L curves, and strategy performance over time
+- [ ] **Paper Trading Mode** — virtual portfolio tracking for risk-free strategy validation, weekly performance reports
+- [ ] **Strategy A/B Testing** — run multiple parameter combinations simultaneously, community-submitted configs, auto-ranking
+- [ ] **ML Strike Selection** — XGBoost model trained on historical data (IV rank, HV, P/C ratio, GEX, earnings proximity) to predict optimal strikes
+- [ ] **Volatility Regime Detection** — classify market as low-vol/normal/high-vol/crisis, auto-adjust strategy parameters per regime
+- [ ] **Earnings IV Crush Database** — historical IV crush data per ticker per earnings event, data-driven earnings plays
+- [ ] **Options Flow Anomaly Scoring** — confidence-scored unusual activity with historical validation of signal accuracy
+- [ ] **Weekly Community Challenge** — crowdsourced trade selection competitions with auto-scoring and leaderboard
+- [ ] **Trade Signal Subscription** — push notifications via Telegram/Discord/Email for high-confidence trade signals
+- [ ] **Multi-Language Reports** — Japanese, Korean, Spanish support via community-contributed translations
+- [ ] **IBKR Paper Trading API** — connect to Interactive Brokers paper account for simulated execution
+- [ ] **Real-Time Position Monitor** — live P&L tracking for open positions with auto-roll and close alerts
+
 ### Moonshot
 - [ ] RAG-powered analysis — AI references all past reports for trend context and pattern recognition
 - [ ] Broker API integration (IBKR/Schwab) — one-click order execution directly from report recommendations
@@ -181,6 +196,21 @@ Want to work on something? Check [CONTRIBUTING.md](CONTRIBUTING.md) or [open an 
 - [x] Discord 機器人 — 透過斜線指令查詢報告、接收警報、快速分析
 - [x] 協作觀察清單 — 共享標的清單並附加團隊註記
 - [x] 策略市集 — 瀏覽並複製經驗證的策略配置
+
+### v5.0 — 社群驅動智慧
+
+- [ ] **即時回測儀表板** — GitHub Pages 網站展示經過驗證的歷史勝率、累積損益曲線和策略表現
+- [ ] **模擬交易模式** — 虛擬投資組合追蹤，無風險策略驗證，每週績效報告
+- [ ] **策略 A/B 測試** — 同時執行多種參數組合，社群提交設定，自動排名
+- [ ] **ML 選擇 Strike** — 使用 XGBoost 訓練模型預測最佳 strike（特徵：IV Rank、HV、P/C Ratio、GEX、距財報天數）
+- [ ] **波動率環境偵測** — 將市場分類為低波/正常/高波/危機，每種環境自動調整策略參數
+- [ ] **財報 IV Crush 資料庫** — 每檔標的每次財報的歷史 IV 崩塌數據，數據驅動的財報策略
+- [ ] **選擇權異常活動評分** — 具信心分數的異常活動偵測，附帶歷史信號準確率驗證
+- [ ] **每週社群挑戰** — 群眾外包交易選擇競賽，自動評分和排行榜
+- [ ] **交易信號訂閱** — 透過 Telegram/Discord/Email 推送高信心交易信號
+- [ ] **多語言報告** — 日文、韓文、西班牙文支援，透過社群貢獻翻譯
+- [ ] **IBKR 模擬交易 API** — 連接 Interactive Brokers 模擬帳戶進行模擬執行
+- [ ] **即時部位監控** — 未平倉部位即時損益追蹤，附自動轉倉和平倉提醒
 
 ### 登月計畫
 - [x] RAG 智慧分析 — AI 參照所有歷史報告進行趨勢脈絡分析與模式辨識
