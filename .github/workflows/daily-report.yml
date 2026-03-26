@@ -4,7 +4,16 @@ on:
   schedule:
     # 6:00 AM PT (America/Los_Angeles) = 1:00 PM UTC, weekdays only
     - cron: '0 13 * * 1-5'
-  workflow_dispatch:  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      report_date:
+        description: 'Report date override (YYYY-MM-DD). Leave empty for today.'
+        required: false
+        default: ''
+      report_lang:
+        description: 'Report language: zh (繁體中文) or en (English)'
+        required: false
+        default: 'zh'
 
 permissions:
   contents: write
@@ -29,12 +38,17 @@ jobs:
       - name: Generate report
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          REPORT_DATE: ${{ github.event.inputs.report_date }}
+          REPORT_LANG: ${{ github.event.inputs.report_lang || 'zh' }}
         run: python generate_report.py
 
       - name: Get report info
         id: report
         run: |
-          DATE=$(date +%Y-%m-%d)
+          DATE="${{ github.event.inputs.report_date }}"
+          if [ -z "$DATE" ]; then
+            DATE=$(date +%Y-%m-%d)
+          fi
           REPORT_FILE="reports/${DATE}.md"
           if [ ! -f "$REPORT_FILE" ]; then
             echo "Report file not found: $REPORT_FILE"
@@ -49,7 +63,7 @@ jobs:
           git config user.name "Options Report Bot"
           git config user.email "actions@github.com"
           git add reports/ README.md
-          git commit -m "Daily options report ${{ steps.report.outputs.date }}" || echo "Nothing to commit"
+          git commit -m "📊 Daily options report ${{ steps.report.outputs.date }}" || echo "Nothing to commit"
           git push origin main
 
       - name: Build email body

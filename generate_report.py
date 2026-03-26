@@ -5,6 +5,7 @@ Output: reports/YYYY-MM-DD.md
 """
 
 import math
+import os
 import re
 import sys
 from datetime import datetime, timedelta
@@ -23,6 +24,9 @@ OTM_PCTS = [5, 6, 7, 8, 9, 10]
 NUM_EXPIRIES = 3
 RISK_FREE_RATE = 5.0  # annual %
 HISTORY_DAYS = [1, 3, 5, 7]
+
+# Report language: "zh" (繁體中文) or "en" (English)
+REPORT_LANG = os.environ.get("REPORT_LANG", "zh")
 
 REPORTS_DIR = Path(__file__).parent / "reports"
 REPORTS_DIR.mkdir(exist_ok=True)
@@ -550,11 +554,18 @@ def generate_final_summary(all_results: list) -> str:
 # Main
 # ============================================================
 def main():
-    today = datetime.now().strftime("%Y-%m-%d")
+    # Support date override via env var or CLI arg
+    date_override = os.environ.get("REPORT_DATE", "").strip()
+    if len(sys.argv) > 1 and sys.argv[1].strip():
+        date_override = sys.argv[1].strip()
+    today = date_override if date_override else datetime.now().strftime("%Y-%m-%d")
     report_path = REPORTS_DIR / f"{today}.md"
 
     print(f"=== Options Daily Report {today} ===")
     print(f"Tickers: {', '.join(TICKERS)}")
+    print(f"Language: {REPORT_LANG}")
+    if date_override:
+        print(f"Date override: {date_override} (options data is current snapshot)")
     print()
 
     # Fetch and analyze all tickers
@@ -600,7 +611,7 @@ def main():
 
         print("\nGenerating AI market commentary...")
         quant_report = "\n".join(report_lines)
-        ai_commentary = generate_ai_commentary(quant_report, TICKERS)
+        ai_commentary = generate_ai_commentary(quant_report, TICKERS, lang=REPORT_LANG)
         report_lines.append("")
         report_lines.append("---")
         report_lines.append("")

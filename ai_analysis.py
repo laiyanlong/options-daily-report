@@ -85,8 +85,13 @@ def get_market_context(tickers: list[str]) -> str:
     return "\n\n".join(sections)
 
 
-def generate_ai_commentary(quant_report: str, tickers: list[str]) -> str:
+def generate_ai_commentary(quant_report: str, tickers: list[str], lang: str = "zh") -> str:
     """Generate AI market commentary using Google Gemini API.
+
+    Args:
+        quant_report: The quantitative report content.
+        tickers: List of stock tickers.
+        lang: "zh" for Traditional Chinese, "en" for English.
 
     Returns the commentary string, or an error message if unavailable.
     """
@@ -101,9 +106,46 @@ def generate_ai_commentary(quant_report: str, tickers: list[str]) -> str:
     print("  Fetching market context for AI analysis...")
     market_context = get_market_context(tickers)
 
-    # Build prompt
+    # Build prompt based on language
     today = datetime.now().strftime("%Y-%m-%d")
-    prompt = f"""你是專業的選擇權策略分析師，精通賣方策略（Sell Put / Sell Call）。
+
+    if lang == "en":
+        prompt = f"""You are a professional options strategy analyst specializing in selling strategies (Sell Put / Sell Call).
+Today is {today}.
+
+Below is today's quantitative analysis report and market information. Please provide professional market commentary based on this data.
+
+## Quantitative Report (Black-Scholes Model)
+{quant_report[-6000:]}
+
+## Market News & Analyst Ratings
+{market_context}
+
+Please analyze using this structure:
+
+### 📰 Today's Market Highlights
+For each ticker, analyze the 2-3 most important news items and their impact on stock price and options strategies.
+
+### 📊 Bull/Bear Outlook
+For each ticker, provide a short-term (1-2 weeks) outlook with rationale. Use "Bullish / Neutral / Bearish".
+
+### 🎯 Strategy Recommendations
+1. Based on current market conditions, is Sell Put or Sell Call more suitable? Why?
+2. Recommend one optimal trade per ticker (include strike and expiry preference)
+3. When should the strategy be stopped or adjusted?
+
+### ⚠️ Risk Events This Week
+List major events that could impact these tickers (earnings, Fed, CPI, geopolitics, etc.).
+
+### 💡 Additional Observations
+Any noteworthy points not covered by the quantitative report (unusual options activity, sector rotation, macro trends, etc.).
+
+Notes:
+- Stay objective, avoid excessive optimism or pessimism
+- Reference specific numbers from the report (IV, CP score, annualized return, etc.)
+- End with a disclaimer"""
+    else:
+        prompt = f"""你是專業的選擇權策略分析師，精通賣方策略（Sell Put / Sell Call）。
 今天是 {today}。
 
 以下是今日的量化分析報告和市場資訊。請根據這些數據，用繁體中文提供專業的市場解讀。
