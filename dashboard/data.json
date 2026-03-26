@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-25 21:18:52",
+  "generated_at": "2026-03-26 04:20:10",
   "summary": {
     "total_trades": 49,
     "wins": 39,
@@ -14,290 +14,290 @@
   },
   "cumulative_pnl": [
     {
-      "date": "2026-01-24",
+      "date": "2026-01-25",
       "pnl": 7.51
     },
     {
-      "date": "2026-01-26",
+      "date": "2026-01-27",
       "pnl": 6.8
     },
     {
-      "date": "2026-01-29",
+      "date": "2026-01-30",
       "pnl": 7.96
     },
     {
-      "date": "2026-01-31",
+      "date": "2026-02-01",
       "pnl": 11.48
     },
     {
-      "date": "2026-02-01",
+      "date": "2026-02-02",
       "pnl": 9.61
     },
     {
-      "date": "2026-02-02",
+      "date": "2026-02-03",
       "pnl": 19.96
     },
     {
-      "date": "2026-02-03",
+      "date": "2026-02-04",
       "pnl": 23.94
     },
     {
-      "date": "2026-02-05",
+      "date": "2026-02-06",
       "pnl": 25.83
     },
     {
-      "date": "2026-02-06",
+      "date": "2026-02-07",
       "pnl": 33.1
     },
     {
-      "date": "2026-02-10",
+      "date": "2026-02-11",
       "pnl": 37.08
     },
     {
-      "date": "2026-02-12",
+      "date": "2026-02-13",
       "pnl": 31.59
     },
     {
-      "date": "2026-02-13",
+      "date": "2026-02-14",
       "pnl": 33.96
     },
     {
-      "date": "2026-02-15",
+      "date": "2026-02-16",
       "pnl": 38.21
     },
     {
-      "date": "2026-02-16",
+      "date": "2026-02-17",
       "pnl": 32.61
     },
     {
-      "date": "2026-02-17",
+      "date": "2026-02-18",
       "pnl": 32.71
     },
     {
-      "date": "2026-02-19",
+      "date": "2026-02-20",
       "pnl": 32.07
     },
     {
-      "date": "2026-02-20",
+      "date": "2026-02-21",
       "pnl": 32.95
     },
     {
-      "date": "2026-02-22",
+      "date": "2026-02-23",
       "pnl": 29.38
     },
     {
-      "date": "2026-02-24",
+      "date": "2026-02-25",
       "pnl": 33.08
     },
     {
-      "date": "2026-02-26",
+      "date": "2026-02-27",
       "pnl": 26.53
     },
     {
-      "date": "2026-02-27",
+      "date": "2026-02-28",
       "pnl": 29.2
     },
     {
-      "date": "2026-02-28",
+      "date": "2026-03-01",
       "pnl": 27.88
     },
     {
-      "date": "2026-03-01",
+      "date": "2026-03-02",
       "pnl": 30.06
     },
     {
-      "date": "2026-03-02",
+      "date": "2026-03-03",
       "pnl": 19.68
     },
     {
-      "date": "2026-03-03",
+      "date": "2026-03-04",
       "pnl": 22.04
     },
     {
-      "date": "2026-03-04",
+      "date": "2026-03-05",
       "pnl": 27.58
     },
     {
-      "date": "2026-03-05",
+      "date": "2026-03-06",
       "pnl": 38.18
     },
     {
-      "date": "2026-03-06",
+      "date": "2026-03-07",
       "pnl": 41.57
     },
     {
-      "date": "2026-03-14",
+      "date": "2026-03-15",
       "pnl": 42.86
     },
     {
-      "date": "2026-03-17",
+      "date": "2026-03-18",
       "pnl": 43.82
     }
   ],
   "cumulative_by_strategy": {
     "iron_condor": [
       {
-        "date": "2026-02-01",
+        "date": "2026-02-02",
         "pnl": -4.29
       },
       {
-        "date": "2026-02-06",
+        "date": "2026-02-07",
         "pnl": -2.34
       },
       {
-        "date": "2026-02-19",
+        "date": "2026-02-20",
         "pnl": -3.81
       },
       {
-        "date": "2026-02-22",
+        "date": "2026-02-23",
         "pnl": -7.38
       },
       {
-        "date": "2026-02-26",
+        "date": "2026-02-27",
         "pnl": -13.93
       },
       {
-        "date": "2026-02-28",
+        "date": "2026-03-01",
         "pnl": -17.22
       },
       {
-        "date": "2026-03-01",
+        "date": "2026-03-02",
         "pnl": -15.04
       }
     ],
     "sell_call": [
       {
-        "date": "2026-01-24",
+        "date": "2026-01-25",
         "pnl": 3.89
       },
       {
-        "date": "2026-01-26",
+        "date": "2026-01-27",
         "pnl": 4.86
       },
       {
-        "date": "2026-01-29",
+        "date": "2026-01-30",
         "pnl": 6.02
       },
       {
-        "date": "2026-02-01",
+        "date": "2026-02-02",
         "pnl": 8.98
       },
       {
-        "date": "2026-02-02",
+        "date": "2026-02-03",
         "pnl": 12.27
       },
       {
-        "date": "2026-02-03",
+        "date": "2026-02-04",
         "pnl": 16.25
       },
       {
-        "date": "2026-02-06",
+        "date": "2026-02-07",
         "pnl": 21.57
       },
       {
-        "date": "2026-02-12",
+        "date": "2026-02-13",
         "pnl": 14.98
       },
       {
-        "date": "2026-02-13",
+        "date": "2026-02-14",
         "pnl": 17.35
       },
       {
-        "date": "2026-02-15",
+        "date": "2026-02-16",
         "pnl": 21.6
       },
       {
-        "date": "2026-02-19",
+        "date": "2026-02-20",
         "pnl": 22.43
       },
       {
-        "date": "2026-02-20",
+        "date": "2026-02-21",
         "pnl": 23.31
       },
       {
-        "date": "2026-02-27",
+        "date": "2026-02-28",
         "pnl": 25.98
       },
       {
-        "date": "2026-02-28",
+        "date": "2026-03-01",
         "pnl": 27.95
       },
       {
-        "date": "2026-03-02",
+        "date": "2026-03-03",
         "pnl": 17.57
       },
       {
-        "date": "2026-03-04",
+        "date": "2026-03-05",
         "pnl": 23.11
       },
       {
-        "date": "2026-03-05",
+        "date": "2026-03-06",
         "pnl": 27.33
       },
       {
-        "date": "2026-03-14",
+        "date": "2026-03-15",
         "pnl": 28.62
       },
       {
-        "date": "2026-03-17",
+        "date": "2026-03-18",
         "pnl": 29.58
       }
     ],
     "sell_put": [
       {
-        "date": "2026-01-24",
+        "date": "2026-01-25",
         "pnl": 3.62
       },
       {
-        "date": "2026-01-26",
+        "date": "2026-01-27",
         "pnl": 1.94
       },
       {
-        "date": "2026-01-31",
+        "date": "2026-02-01",
         "pnl": 5.46
       },
       {
-        "date": "2026-02-01",
+        "date": "2026-02-02",
         "pnl": 4.92
       },
       {
-        "date": "2026-02-02",
+        "date": "2026-02-03",
         "pnl": 11.98
       },
       {
-        "date": "2026-02-05",
+        "date": "2026-02-06",
         "pnl": 13.87
       },
       {
-        "date": "2026-02-10",
+        "date": "2026-02-11",
         "pnl": 17.85
       },
       {
-        "date": "2026-02-12",
+        "date": "2026-02-13",
         "pnl": 18.95
       },
       {
-        "date": "2026-02-16",
+        "date": "2026-02-17",
         "pnl": 13.35
       },
       {
-        "date": "2026-02-17",
+        "date": "2026-02-18",
         "pnl": 13.45
       },
       {
-        "date": "2026-02-24",
+        "date": "2026-02-25",
         "pnl": 17.15
       },
       {
-        "date": "2026-03-03",
+        "date": "2026-03-04",
         "pnl": 19.51
       },
       {
-        "date": "2026-03-05",
+        "date": "2026-03-06",
         "pnl": 25.89
       },
       {
-        "date": "2026-03-06",
+        "date": "2026-03-07",
         "pnl": 29.28
       }
     ]
@@ -305,15 +305,15 @@
   "monthly_returns": [
     {
       "month": "2026-01",
-      "pnl": 11.48
+      "pnl": 7.96
     },
     {
       "month": "2026-02",
-      "pnl": 16.4
+      "pnl": 21.24
     },
     {
       "month": "2026-03",
-      "pnl": 15.94
+      "pnl": 14.62
     }
   ],
   "ticker_stats": {
@@ -373,8 +373,8 @@
       "id": 41,
       "symbol": "NVDA",
       "strategy": "sell_call",
-      "entry_date": "2026-03-17",
-      "expiry_date": "2026-03-24",
+      "entry_date": "2026-03-18",
+      "expiry_date": "2026-03-25",
       "strike": 142.28,
       "premium": 0.96,
       "expiry_price": 138.79,
@@ -386,8 +386,8 @@
       "id": 36,
       "symbol": "NVDA",
       "strategy": "sell_call",
-      "entry_date": "2026-03-14",
-      "expiry_date": "2026-03-21",
+      "entry_date": "2026-03-15",
+      "expiry_date": "2026-03-22",
       "strike": 138.01,
       "premium": 1.29,
       "expiry_price": 135.7,
@@ -399,8 +399,8 @@
       "id": 2,
       "symbol": "TSLA",
       "strategy": "sell_put",
-      "entry_date": "2026-03-06",
-      "expiry_date": "2026-03-13",
+      "entry_date": "2026-03-07",
+      "expiry_date": "2026-03-14",
       "strike": 235.84,
       "premium": 3.39,
       "expiry_price": 245.37,
@@ -412,8 +412,8 @@
       "id": 1,
       "symbol": "TSLA",
       "strategy": "sell_put",
-      "entry_date": "2026-03-05",
-      "expiry_date": "2026-03-19",
+      "entry_date": "2026-03-06",
+      "expiry_date": "2026-03-20",
       "strike": 227.31,
       "premium": 3.54,
       "expiry_price": 239.53,
@@ -425,8 +425,8 @@
       "id": 8,
       "symbol": "TSLA",
       "strategy": "sell_call",
-      "entry_date": "2026-03-05",
-      "expiry_date": "2026-03-19",
+      "entry_date": "2026-03-06",
+      "expiry_date": "2026-03-20",
       "strike": 259.3,
       "premium": 4.22,
       "expiry_price": 254.13,
@@ -438,8 +438,8 @@
       "id": 27,
       "symbol": "NVDA",
       "strategy": "sell_put",
-      "entry_date": "2026-03-05",
-      "expiry_date": "2026-03-12",
+      "entry_date": "2026-03-06",
+      "expiry_date": "2026-03-13",
       "strike": 119.4,
       "premium": 2.84,
       "expiry_price": 139.39,
@@ -451,8 +451,8 @@
       "id": 34,
       "symbol": "NVDA",
       "strategy": "sell_call",
-      "entry_date": "2026-03-04",
-      "expiry_date": "2026-03-18",
+      "entry_date": "2026-03-05",
+      "expiry_date": "2026-03-19",
       "strike": 139.63,
       "premium": 1.78,
       "expiry_price": 126.37,
@@ -464,8 +464,8 @@
       "id": 39,
       "symbol": "NVDA",
       "strategy": "sell_call",
-      "entry_date": "2026-03-04",
-      "expiry_date": "2026-03-11",
+      "entry_date": "2026-03-05",
+      "expiry_date": "2026-03-12",
       "strike": 147.38,
       "premium": 1.38,
       "expiry_price": 142.38,
@@ -477,8 +477,8 @@
       "id": 42,
       "symbol": "NVDA",
       "strategy": "sell_call",
-      "entry_date": "2026-03-04",
-      "expiry_date": "2026-03-18",
+      "entry_date": "2026-03-05",
+      "expiry_date": "2026-03-19",
       "strike": 142.79,
       "premium": 2.38,
       "expiry_price": 140.36,
@@ -490,8 +490,8 @@
       "id": 3,
       "symbol": "TSLA",
       "strategy": "sell_put",
-      "entry_date": "2026-03-03",
-      "expiry_date": "2026-03-10",
+      "entry_date": "2026-03-04",
+      "expiry_date": "2026-03-11",
       "strike": 250.46,
       "premium": 2.36,
       "expiry_price": 255.55,
@@ -503,8 +503,8 @@
       "id": 37,
       "symbol": "NVDA",
       "strategy": "sell_call",
-      "entry_date": "2026-03-02",
-      "expiry_date": "2026-03-16",
+      "entry_date": "2026-03-03",
+      "expiry_date": "2026-03-17",
       "strike": 136.07,
       "premium": 1.92,
       "expiry_price": 148.37,
@@ -516,8 +516,8 @@
       "id": 48,
       "symbol": "NVDA",
       "strategy": "iron_condor",
-      "entry_date": "2026-03-01",
-      "expiry_date": "2026-03-15",
+      "entry_date": "2026-03-02",
+      "expiry_date": "2026-03-16",
       "strike": 115.14,
       "premium": 2.18,
       "expiry_price": 129.39,
@@ -531,8 +531,8 @@
       "id": 9,
       "symbol": "TSLA",
       "strategy": "sell_call",
-      "entry_date": "2026-02-28",
-      "expiry_date": "2026-03-07",
+      "entry_date": "2026-03-01",
+      "expiry_date": "2026-03-08",
       "strike": 246.72,
       "premium": 1.97,
       "expiry_price": 241.71,
@@ -544,8 +544,8 @@
       "id": 45,
       "symbol": "AMZN",
       "strategy": "iron_condor",
-      "entry_date": "2026-02-28",
-      "expiry_date": "2026-03-14",
+      "entry_date": "2026-03-01",
+      "expiry_date": "2026-03-15",
       "strike": 180.24,
       "premium": 4.34,
       "expiry_price": 172.61,
@@ -559,8 +559,8 @@
       "id": 40,
       "symbol": "NVDA",
       "strategy": "sell_call",
-      "entry_date": "2026-02-27",
-      "expiry_date": "2026-03-13",
+      "entry_date": "2026-02-28",
+      "expiry_date": "2026-03-14",
       "strike": 143.63,
       "premium": 2.67,
       "expiry_price": 125.37,
@@ -572,8 +572,8 @@
       "id": 49,
       "symbol": "NVDA",
       "strategy": "iron_condor",
-      "entry_date": "2026-02-26",
-      "expiry_date": "2026-03-19",
+      "entry_date": "2026-02-27",
+      "expiry_date": "2026-03-20",
       "strike": 122.61,
       "premium": 2.9,
       "expiry_price": 150.52,
@@ -587,8 +587,8 @@
       "id": 29,
       "symbol": "NVDA",
       "strategy": "sell_put",
-      "entry_date": "2026-02-24",
-      "expiry_date": "2026-03-03",
+      "entry_date": "2026-02-25",
+      "expiry_date": "2026-03-04",
       "strike": 134.03,
       "premium": 3.7,
       "expiry_price": 143.07,
@@ -600,8 +600,8 @@
       "id": 46,
       "symbol": "AMZN",
       "strategy": "iron_condor",
-      "entry_date": "2026-02-22",
-      "expiry_date": "2026-03-15",
+      "entry_date": "2026-02-23",
+      "expiry_date": "2026-03-16",
       "strike": 177.25,
       "premium": 4.52,
       "expiry_price": 169.16,
@@ -615,8 +615,8 @@
       "id": 21,
       "symbol": "AMZN",
       "strategy": "sell_call",
-      "entry_date": "2026-02-20",
-      "expiry_date": "2026-02-27",
+      "entry_date": "2026-02-21",
+      "expiry_date": "2026-02-28",
       "strike": 183.43,
       "premium": 0.88,
       "expiry_price": 171.25,
@@ -628,8 +628,8 @@
       "id": 35,
       "symbol": "NVDA",
       "strategy": "sell_call",
-      "entry_date": "2026-02-19",
-      "expiry_date": "2026-03-12",
+      "entry_date": "2026-02-20",
+      "expiry_date": "2026-03-13",
       "strike": 149.59,
       "premium": 0.83,
       "expiry_price": 137.89,
