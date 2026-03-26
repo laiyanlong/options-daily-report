@@ -25,12 +25,12 @@ Current status and future plans for Options Daily Report.
 
 ## v1.2 — Options Intelligence
 
-- [ ] **Put/Call ratio tracking** — fetch CBOE P/C ratio for each ticker, show trend (bullish/bearish signal)
-- [ ] **Max Pain calculation** — calculate max pain price from full options chain, show distance from current price
-- [ ] **Unusual options activity** — detect high volume/OI ratio strikes, flag potential smart money flow
-- [ ] **Expected Move calculation** — ATM straddle price to estimate expected range for the week
-- [ ] **Probability of Profit (POP)** — calculate POP for each recommended trade using delta-based estimation
-- [ ] **Bid-Ask spread quality** — flag strikes with wide spreads (>10% of premium), recommend liquid alternatives
+- [x] **Put/Call ratio tracking** — volume & OI ratio with bullish/bearish signal per ticker
+- [x] **Max Pain calculation** — max pain price from full options chain, distance from current price
+- [x] **Unusual options activity** — detect high volume/OI ratio strikes, flag smart money flow
+- [x] **Expected Move calculation** — ATM straddle price for weekly expected range
+- [x] **Probability of Profit (POP)** — Black-Scholes based POP for each recommended trade
+- [x] **Bid-Ask spread quality** — rate spreads as Excellent/Good/Fair/Poor, flag wide spreads
 
 ## v2.0 — Multi-Strategy
 
