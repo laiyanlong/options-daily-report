@@ -231,6 +231,86 @@ def _build_greeks_heatmap(result: dict) -> go.Figure | None:
     return fig
 
 
+def _build_scenario_pnl_chart(all_results: list) -> go.Figure | None:
+    """Build scenario analysis P&L chart for best trades across tickers."""
+    try:
+        moves = [-15, -10, -5, -3, 0, 3, 5, 10, 15]
+        has_data = False
+
+        fig = go.Figure()
+
+        for result in all_results:
+            symbol = result["symbol"]
+            price = result["price"]
+
+            if not result["expiries"]:
+                continue
+
+            # Find best Sell Put from first expiry by CP score
+            first_expiry = result["expiries"][0]
+            sell_puts = first_expiry.get("sell_puts", [])
+            if not sell_puts:
+                continue
+
+            best_put = max(sell_puts, key=lambda x: x["cp"])
+            strike = best_put["strike"]
+            premium = best_put["bid"]
+
+            if premium <= 0:
+                continue
+
+            # Calculate P&L at each price move scenario
+            pnl_values = []
+            for move_pct in moves:
+                future_price = price * (1 + move_pct / 100)
+                # P&L for short put: min(premium, premium + (future_price - strike)) per contract * 100
+                pnl_per_contract = min(premium, premium + (future_price - strike)) * 100
+                pnl_values.append(round(pnl_per_contract, 2))
+
+            fig.add_trace(go.Scatter(
+                x=[f"{m:+d}%" for m in moves],
+                y=pnl_values,
+                mode="lines+markers",
+                name=f"{symbol} Put ${strike:.0f}",
+                line=dict(width=2),
+                marker=dict(size=6),
+            ))
+            has_data = True
+
+        if not has_data:
+            return None
+
+        # Add breakeven line at y=0
+        fig.add_hline(
+            y=0,
+            line_dash="dash",
+            line_color="white",
+            annotation_text="Breakeven",
+            annotation_position="bottom right",
+        )
+
+        # Add vertical line at x=0 (current price)
+        fig.add_vline(
+            x="0%",
+            line_dash="dash",
+            line_color="gold",
+            annotation_text="Current Price",
+            annotation_position="top",
+        )
+
+        fig.update_layout(
+            title="Scenario P&L Analysis - Best Sell Puts",
+            xaxis_title="Price Move (%)",
+            yaxis_title="P&L ($)",
+            template="plotly_dark",
+            height=450,
+            hovermode="x unified",
+        )
+        return fig
+    except Exception:
+        return None
+
+
 def generate_html_report(all_results: list, report_date: str, reports_dir: Path) -> str:
     """Generate interactive HTML report. Returns the file path."""
     html_parts = []
@@ -313,6 +393,16 @@ def generate_html_report(all_results: list, report_date: str, reports_dir: Path)
             chart_html = fig.to_html(full_html=False, include_plotlyjs=False)
             html_parts.append(f'    <h2>{symbol} - Delta Heatmap</h2>')
             html_parts.append(f'    <div class="chart-container">{chart_html}</div>')
+
+    # 5. Scenario P&L Chart (combined)
+    try:
+        fig = _build_scenario_pnl_chart(all_results)
+        if fig is not None:
+            chart_html = fig.to_html(full_html=False, include_plotlyjs=False)
+            html_parts.append('    <h2>Scenario P&L Analysis - Best Sell Puts</h2>')
+            html_parts.append(f'    <div class="chart-container">{chart_html}</div>')
+    except Exception:
+        pass
 
     # Footer
     html_parts.append("""

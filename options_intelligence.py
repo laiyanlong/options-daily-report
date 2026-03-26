@@ -363,3 +363,144 @@ def spread_quality(entries: list[dict]) -> list[dict]:
         return results
     except Exception:
         return []
+
+
+def gamma_exposure(tk) -> dict | None:
+    """Calculate Gamma Exposure (GEX) to predict support/resistance from dealer hedging.
+
+    When market makers sell options, they delta-hedge. GEX shows where their hedging
+    creates support (positive GEX = buying pressure) or resistance (negative GEX = selling pressure).
+
+    Returns:
+        {"gex_by_strike": list[{"strike": float, "call_gex": float, "put_gex": float, "net_gex": float}],
+         "total_gex": float, "gex_flip_point": float | None,
+         "key_support": float | None, "key_resistance": float | None,
+         "current_price": float}
+    """
+    try:
+        expiries = tk.options
+        if not expiries:
+            return None
+
+        chain = tk.option_chain(expiries[0])
+        calls = chain.calls
+        puts = chain.puts
+
+        if calls.empty or puts.empty:
+            return None
+
+        # Current price
+        info = tk.info
+        current_price = (
+            info.get("currentPrice")
+            or info.get("regularMarketPrice")
+            or info.get("previousClose", 0)
+        )
+        if current_price <= 0:
+            return None
+
+        # Days to expiry for gamma estimation fallback
+        exp_dt = datetime.strptime(expiries[0], "%Y-%m-%d")
+        days_to_exp = max((exp_dt - datetime.now()).days, 1)
+        T = days_to_exp / 365.0
+        r = 0.05  # risk-free rate
+
+        # Build call and put data by strike
+        call_map = {}
+        for _, row in calls.iterrows():
+            strike = float(row["strike"])
+            gamma = float(row.get("gamma", 0) or 0)
+            oi = int(row.get("openInterest", 0) or 0)
+            iv = float(row.get("impliedVolatility", 0) or 0)
+            # Estimate gamma from Black-Scholes if not available
+            if gamma <= 0 and iv > 0 and strike > 0:
+                try:
+                    sqrt_T = math.sqrt(T)
+                    d1 = (math.log(current_price / strike) + (r + 0.5 * iv ** 2) * T) / (iv * sqrt_T)
+                    gamma = norm.pdf(d1) / (current_price * iv * sqrt_T)
+                except Exception:
+                    gamma = 0
+            call_map[strike] = {"gamma": gamma, "oi": oi}
+
+        put_map = {}
+        for _, row in puts.iterrows():
+            strike = float(row["strike"])
+            gamma = float(row.get("gamma", 0) or 0)
+            oi = int(row.get("openInterest", 0) or 0)
+            iv = float(row.get("impliedVolatility", 0) or 0)
+            # Estimate gamma from Black-Scholes if not available
+            if gamma <= 0 and iv > 0 and strike > 0:
+                try:
+                    sqrt_T = math.sqrt(T)
+                    d1 = (math.log(current_price / strike) + (r + 0.5 * iv ** 2) * T) / (iv * sqrt_T)
+                    gamma = norm.pdf(d1) / (current_price * iv * sqrt_T)
+                except Exception:
+                    gamma = 0
+            put_map[strike] = {"gamma": gamma, "oi": oi}
+
+        all_strikes = sorted(set(list(call_map.keys()) + list(put_map.keys())))
+        if not all_strikes:
+            return None
+
+        gex_by_strike = []
+        total_gex = 0.0
+
+        for strike in all_strikes:
+            c = call_map.get(strike, {"gamma": 0, "oi": 0})
+            p = put_map.get(strike, {"gamma": 0, "oi": 0})
+
+            # Call GEX: positive (dealers are long gamma on calls)
+            call_gex = c["gamma"] * c["oi"] * 100 * current_price
+            # Put GEX: negative (dealers are short gamma on puts)
+            put_gex = -p["gamma"] * p["oi"] * 100 * current_price
+            net_gex = call_gex + put_gex
+
+            gex_by_strike.append({
+                "strike": strike,
+                "call_gex": round(call_gex, 2),
+                "put_gex": round(put_gex, 2),
+                "net_gex": round(net_gex, 2),
+            })
+            total_gex += net_gex
+
+        # Find GEX flip point: strike where net GEX changes sign
+        gex_flip_point = None
+        for i in range(1, len(gex_by_strike)):
+            prev_gex = gex_by_strike[i - 1]["net_gex"]
+            curr_gex = gex_by_strike[i]["net_gex"]
+            if prev_gex * curr_gex < 0:
+                # Linear interpolation for flip point
+                s1 = gex_by_strike[i - 1]["strike"]
+                s2 = gex_by_strike[i]["strike"]
+                if abs(curr_gex - prev_gex) > 0:
+                    gex_flip_point = s1 + (s2 - s1) * abs(prev_gex) / abs(curr_gex - prev_gex)
+                else:
+                    gex_flip_point = (s1 + s2) / 2
+                break
+
+        # Key support: strike with highest positive GEX below current price
+        key_support = None
+        max_pos_gex_below = 0.0
+        for entry in gex_by_strike:
+            if entry["strike"] < current_price and entry["net_gex"] > max_pos_gex_below:
+                max_pos_gex_below = entry["net_gex"]
+                key_support = entry["strike"]
+
+        # Key resistance: strike with highest positive GEX above current price
+        key_resistance = None
+        max_pos_gex_above = 0.0
+        for entry in gex_by_strike:
+            if entry["strike"] > current_price and entry["net_gex"] > max_pos_gex_above:
+                max_pos_gex_above = entry["net_gex"]
+                key_resistance = entry["strike"]
+
+        return {
+            "gex_by_strike": gex_by_strike,
+            "total_gex": round(total_gex, 2),
+            "gex_flip_point": round(gex_flip_point, 2) if gex_flip_point is not None else None,
+            "key_support": key_support,
+            "key_resistance": key_resistance,
+            "current_price": round(current_price, 2),
+        }
+    except Exception:
+        return None

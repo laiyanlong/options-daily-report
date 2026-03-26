@@ -119,6 +119,14 @@ def fetch_ticker_data(symbol: str) -> dict:
     except Exception:
         pass
 
+    # --- GEX ---
+    gex_data = None
+    try:
+        from options_intelligence import gamma_exposure
+        gex_data = gamma_exposure(tk)
+    except Exception:
+        pass
+
     # --- v2.0 Multi-Strategy ---
     multi_strat = None
     try:
@@ -154,6 +162,7 @@ def fetch_ticker_data(symbol: str) -> dict:
         "unusual_activity": unusual,
         "expected_move": exp_move,
         "multi_strategy": multi_strat,
+        "gex": gex_data,
     }
 
 
@@ -536,6 +545,27 @@ def generate_ticker_report(result: dict) -> str:
                         f"| {iv_str} |"
                     )
                 lines.append("")
+    except Exception:
+        pass
+
+    # --- GEX Section ---
+    try:
+        gex_data = data.get("gex")
+        if gex_data:
+            total_gex = gex_data.get("total_gex", 0)
+            gex_flip = gex_data.get("gex_flip_point")
+            support = gex_data.get("key_support")
+            resistance = gex_data.get("key_resistance")
+
+            lines.append("**Gamma Exposure (GEX)**")
+            lines.append("")
+            lines.append("| 項目 | 數值 |")
+            lines.append("|------|------|")
+            lines.append(f"| Total GEX | {total_gex:,.0f} |")
+            lines.append(f"| GEX Flip Point | {f'${gex_flip:.2f}' if gex_flip is not None else 'N/A'} |")
+            lines.append(f"| Key Support (GEX) | {f'${support:.2f}' if support is not None else 'N/A'} |")
+            lines.append(f"| Key Resistance (GEX) | {f'${resistance:.2f}' if resistance is not None else 'N/A'} |")
+            lines.append("")
     except Exception:
         pass
 
