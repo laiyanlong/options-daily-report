@@ -244,6 +244,18 @@ options-daily-report/
 
 ---
 
+## Contributing
+
+We welcome contributions of all kinds! Whether it's a bug fix, new strategy, visualization, or documentation improvement.
+
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** — How to get started, development guidelines, and feature ideas
+- **[ROADMAP.md](ROADMAP.md)** — What's planned and where help is needed
+- **[Issues](https://github.com/laiyanlong/options-daily-report/issues)** — Browse open issues or suggest new features
+
+Look for `good first issue` labels for beginner-friendly tasks!
+
+---
+
 ## Disclaimer
 
 This project generates reports for **educational and research purposes only**. Nothing in these reports constitutes financial advice. Options trading involves significant risk of loss. Always consult qualified financial professionals before making investment decisions. Past performance does not guarantee future results.
@@ -328,6 +340,6 @@ REPORT_LANG=en python generate_report.py
 
 <div align="center">
 
-**[View Reports](reports/) · [Report Issue](https://github.com/laiyanlong/options-daily-report/issues)**
+**[View Reports](reports/) · [Contributing](CONTRIBUTING.md) · [Roadmap](ROADMAP.md) · [Report Issue](https://github.com/laiyanlong/options-daily-report/issues)**
 
 </div>

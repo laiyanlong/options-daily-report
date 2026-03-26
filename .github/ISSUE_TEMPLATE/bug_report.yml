@@ -1,0 +1,45 @@
+name: "Bug Report"
+description: "Report a bug or incorrect data"
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description"
+      description: "What went wrong?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected Behavior"
+      description: "What should have happened?"
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: "Steps to Reproduce"
+      description: "How can we reproduce the issue?"
+      placeholder: |
+        1. Run `python generate_report.py`
+        2. Set TICKERS=XYZ
+        3. See error...
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Component"
+      options:
+        - "Quantitative Analysis (generate_report.py)"
+        - "AI Commentary (ai_analysis.py)"
+        - "GitHub Actions Workflow"
+        - "Email Delivery"
+        - "Other"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Error Logs"
+      description: "Paste any relevant error output"
+      render: shell

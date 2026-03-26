@@ -1,0 +1,50 @@
+name: "Feature Request"
+description: "Suggest a new feature or enhancement"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Check [CONTRIBUTING.md](../../CONTRIBUTING.md) for ideas we'd especially love to see.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Feature Description"
+      description: "What would you like to add or improve?"
+      placeholder: "Add Iron Condor strategy analysis alongside existing Sell Put/Call..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Category"
+      options:
+        - "Strategy & Analysis (new strategies, metrics, scoring)"
+        - "Data & Visualization (charts, dashboards, historical data)"
+        - "AI & Intelligence (new AI providers, sentiment, RAG)"
+        - "Infrastructure (notifications, Docker, CI/CD)"
+        - "Documentation & i18n (translations, guides)"
+        - "Other"
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "Why is this useful?"
+      description: "How would this help you or other users?"
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: "Possible Implementation"
+      description: "Any ideas on how to implement this? (optional)"
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: "Contribution"
+      options:
+        - label: "I'm willing to submit a PR for this feature"
