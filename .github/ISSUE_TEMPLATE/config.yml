@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Discussions
+    url: https://github.com/laiyanlong/options-daily-report/discussions
+    about: Ask questions, share ideas, or discuss strategies
+  - name: DappGo Website
+    url: https://dappgo.com
+    about: Learn more about our AI automation services
