@@ -24,7 +24,10 @@ _tickers_env = os.environ.get("TICKERS", "").strip()
 TICKERS = [t.strip().upper() for t in _tickers_env.split(",") if t.strip()] if _tickers_env else ["TSLA", "AMZN", "NVDA"]
 
 OTM_PCTS = [5, 6, 7, 8, 9, 10]
-NUM_EXPIRIES = 3
+NUM_EXPIRIES = 4
+MIN_DTE = 5           # Minimum 5 days to expiry (skip 0-4 DTE)
+MIN_PREMIUM = 1.00    # Minimum $1.00 bid to include in analysis
+MAX_PREMIUM = 7.00    # Maximum $7.00 bid (filter out deep ITM)
 RISK_FREE_RATE = 5.0  # annual %
 HISTORY_DAYS = [1, 3, 5, 7]
 
@@ -65,7 +68,20 @@ def fetch_ticker_data(symbol: str) -> dict:
     except Exception:
         all_expiries = []
 
-    expiries = list(all_expiries[:NUM_EXPIRIES])
+    # Filter expiries: skip those with fewer than MIN_DTE days
+    from datetime import datetime as _dt
+    _today = _dt.now()
+    expiries = []
+    for exp_str in all_expiries:
+        try:
+            exp_dt = _dt.strptime(exp_str, "%Y-%m-%d")
+            dte = (exp_dt - _today).days
+            if dte >= MIN_DTE:
+                expiries.append(exp_str)
+            if len(expiries) >= NUM_EXPIRIES:
+                break
+        except Exception:
+            continue
     chains = {}
     for exp in expiries:
         try:
@@ -286,6 +302,10 @@ def analyze_ticker(data: dict) -> dict:
             iv = float(row.get("impliedVolatility", 0) or 0) * 100
             actual_otm = round((strike - price) / price * 100, 2)
 
+            # Skip options with premium outside investable range
+            if bid < MIN_PREMIUM or bid > MAX_PREMIUM:
+                continue
+
             greeks = calc_greeks(price, strike, days_to_exp, iv, "put")
             annualized = (bid / strike * 365 / days_to_exp * 100) if strike > 0 and bid > 0 else 0
             cp = calc_cp_score(annualized, abs(actual_otm), greeks["delta"], greeks["theta"], bid)
@@ -320,6 +340,10 @@ def analyze_ticker(data: dict) -> dict:
             ask = float(row.get("ask", 0) or 0)
             iv = float(row.get("impliedVolatility", 0) or 0) * 100
             actual_otm = round((strike - price) / price * 100, 2)
+
+            # Skip options with premium outside investable range
+            if bid < MIN_PREMIUM or bid > MAX_PREMIUM:
+                continue
 
             greeks = calc_greeks(price, strike, days_to_exp, iv, "call")
             annualized = (bid / strike * 365 / days_to_exp * 100) if strike > 0 and bid > 0 else 0
@@ -1112,7 +1136,7 @@ def main():
     report_lines.append("")
     report_lines.append(f"**產生時間**：{datetime.now().strftime('%Y-%m-%d %H:%M')} UTC")
     report_lines.append(f"**分析標的**：{', '.join(TICKERS)}")
-    report_lines.append(f"**分析範圍**：Sell Put / Sell Call, OTM 5%~10%, 最近 {NUM_EXPIRIES} 個到期日")
+    report_lines.append(f"**分析範圍**：Sell Put / Sell Call, OTM 5%~10%, DTE ≥ {MIN_DTE} 天, 權利金 ${MIN_PREMIUM:.2f}-${MAX_PREMIUM:.2f}")
     report_lines.append("")
     report_lines.append("---")
     report_lines.append("")
