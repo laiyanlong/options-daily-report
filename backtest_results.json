@@ -1,0 +1,50 @@
+{
+  "period": "6mo",
+  "tickers": [
+    "TSLA",
+    "AMZN",
+    "NVDA"
+  ],
+  "total_trading_days": 354,
+  "baseline": {
+    "trades": 354,
+    "win_rate": 83.6,
+    "total_pnl": -146.69,
+    "sharpe": -0.47
+  },
+  "with_iv_reversion": {
+    "trades": 354,
+    "win_rate": 83.6,
+    "total_pnl": -146.69,
+    "sharpe": -0.47,
+    "improvement": "P&L 0.0%, Sharpe 0.00, Trades: 354/354 (100%)"
+  },
+  "with_regime_filter": {
+    "trades": 354,
+    "win_rate": 83.6,
+    "total_pnl": -146.69,
+    "sharpe": -0.47,
+    "improvement": "P&L 0.0%, Sharpe 0.00, Trades: 354/354 (100%)"
+  },
+  "with_direction_filter": {
+    "trades": 191,
+    "win_rate": 75.4,
+    "total_pnl": -259.98,
+    "sharpe": -1.21,
+    "improvement": "Win rate -8.2%, P&L -77.2%, Sharpe -0.74, Trades: 191/354 (54%)"
+  },
+  "with_ml_score": {
+    "trades": 191,
+    "win_rate": 75.4,
+    "total_pnl": -259.98,
+    "sharpe": -1.21,
+    "improvement": "Win rate -8.2%, P&L -77.2%, Sharpe -0.74, Trades: 191/354 (54%)"
+  },
+  "combined_all": {
+    "trades": 191,
+    "win_rate": 75.4,
+    "total_pnl": -259.98,
+    "sharpe": -1.21,
+    "improvement": "Win rate -8.2%, P&L -77.2%, Sharpe -0.74, Trades: 191/354 (54%)"
+  }
+}
