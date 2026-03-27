@@ -388,36 +388,90 @@ function renderWinRateByTicker(stats) {
   Plotly.newPlot('chart-wr-ticker', [trace], layout, PLOTLY_CONFIG);
 }
 
-function renderMonthlyHeatmap(monthly) {
+// ── Monthly Returns: one bar chart per strategy ──────────
+function renderMonthlyByStrategy(monthly) {
+  const container = document.getElementById('monthly-charts');
   const strategies = Object.keys(monthly).filter(k => k !== 'months');
-  const z = strategies.map(s => monthly[s]);
-  const trace = {
-    z, x: monthly.months, y: strategies,
-    type: 'heatmap',
-    colorscale: [
-      [0,   '#b71c1c'],
-      [0.3, '#ff5252'],
-      [0.5, '#424242'],
-      [0.7, '#00c853'],
-      [1,   '#00e676'],
-    ],
-    zmid: 0,
-    text: z.map(row => row.map(v => (v >= 0 ? '+' : '') + fmt(v) + '%')),
-    texttemplate: '%{text}',
-    textfont: { size: 12 },
-    hovertemplate: '%{y} | %{x}<br>Return: %{z:.1f}%<extra></extra>',
-    colorbar: { title: 'Return %', titlefont: { color: '#e0e0e0' }, tickfont: { color: '#e0e0e0' } },
-  };
-  const layout = {
-    ...PLOTLY_LAYOUT_BASE,
-    title: { text: 'Monthly Returns Heatmap', font: { size: 15, color: '#fff' }, x: 0.01 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, side: 'bottom' },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, autorange: 'reversed' },
-  };
-  Plotly.newPlot('chart-heatmap', [trace], layout, PLOTLY_CONFIG);
+  if (!strategies.length || !monthly.months) { container.innerHTML = '<p style="color:#90a4ae">No monthly data</p>'; return; }
+
+  const stratColors = { sell_put: '#EF553B', sell_call: '#636EFA', iron_condor: '#00CC96' };
+  const stratNames = { sell_put: 'Sell Put', sell_call: 'Sell Call', iron_condor: 'Iron Condor' };
+
+  let html = '';
+  strategies.forEach(s => {
+    const divId = 'chart-monthly-' + s.replace(/[^a-z_]/g, '');
+    html += `<div class="chart-wrap" style="flex:1;min-width:280px"><div id="${divId}" style="height:280px"></div></div>`;
+  });
+  container.innerHTML = html;
+
+  strategies.forEach(s => {
+    const divId = 'chart-monthly-' + s.replace(/[^a-z_]/g, '');
+    const vals = monthly[s] || [];
+    const colors = vals.map(v => v >= 0 ? '#00e676' : '#ff5252');
+    Plotly.newPlot(divId, [{
+      x: monthly.months, y: vals, type: 'bar',
+      marker: { color: colors },
+      text: vals.map(v => (v >= 0 ? '+' : '') + fmt(v) + '%'),
+      textposition: 'outside', textfont: { size: 11, color: '#e0e0e0' },
+      hovertemplate: '%{x}<br>Return: %{y:.2f}%<extra></extra>',
+    }], {
+      ...PLOTLY_LAYOUT_BASE, height: 280,
+      title: { text: stratNames[s] || s, font: { size: 14, color: stratColors[s] || '#fff' }, x: 0.01 },
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Return %', zeroline: true, zerolinecolor: '#555' },
+    }, PLOTLY_CONFIG);
+  });
 }
 
-function renderRecentTrades(trades) {
+// ── Strike Comparison: best CP across expiry dates ──────
+function renderStrikeComparison(data) {
+  const el = document.getElementById('chart-strike-compare');
+  if (!data.recent_trades || !data.recent_trades.length) {
+    el.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:40px">Strike comparison available when trades accumulate</p>';
+    return;
+  }
+
+  // Group trades by expiry, show premium vs strike with CP-like metric
+  const byExpiry = {};
+  data.recent_trades.forEach(t => {
+    const key = t.expiry || 'unknown';
+    if (!byExpiry[key]) byExpiry[key] = [];
+    byExpiry[key].push(t);
+  });
+
+  const traces = [];
+  const expiryColors = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A'];
+  let colorIdx = 0;
+
+  Object.entries(byExpiry).sort().forEach(([exp, trades]) => {
+    const sorted = [...trades].sort((a, b) => a.strike - b.strike);
+    traces.push({
+      x: sorted.map(t => '$' + t.strike),
+      y: sorted.map(t => t.premium),
+      name: exp,
+      type: 'bar',
+      marker: { color: expiryColors[colorIdx % expiryColors.length] },
+      text: sorted.map(t => {
+        const sym = t.symbol || '';
+        const strat = t.strategy || '';
+        return `${sym} ${strat}`;
+      }),
+      hovertemplate: 'Strike: %{x}<br>Premium: $%{y:.2f}<br>%{text}<br>Expiry: ' + exp + '<extra></extra>',
+    });
+    colorIdx++;
+  });
+
+  Plotly.newPlot(el, traces, {
+    ...PLOTLY_LAYOUT_BASE,
+    title: { text: 'Premium by Strike & Expiry Date', font: { size: 15, color: '#fff' }, x: 0.01 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Strike Price' },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Premium ($)', tickprefix: '$' },
+    barmode: 'group',
+    legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.2 },
+  }, PLOTLY_CONFIG);
+}
+
+// ── Grouped Trades with tab filters ──────────────────────
+function renderGroupedTrades(trades) {
   const cols = [
     { key: 'date',     label: 'Date' },
     { key: 'symbol',   label: 'Symbol' },
@@ -429,43 +483,119 @@ function renderRecentTrades(trades) {
     { key: 'pnl',      label: 'P&L',     fmt: v => `<span class="${v >= 0 ? 'pnl-pos' : 'pnl-neg'}">${fmtDollar(v)}</span>` },
   ];
 
+  // Build filter tabs
+  const tabWrap = document.getElementById('trade-tabs');
+  const symbols = ['All', ...new Set(trades.map(t => t.symbol))];
+  const strategies = ['All', ...new Set(trades.map(t => t.strategy))];
+
+  let activeSymbol = 'All';
+  let activeStrategy = 'All';
   let sortCol = null;
   let sortAsc = true;
 
-  function build(data) {
-    const thead = cols.map(c => {
-      const arrow = sortCol === c.key ? (sortAsc ? ' &#9650;' : ' &#9660;') : '';
-      return `<th data-col="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
-    }).join('');
-    const tbody = data.slice(0, 20).map(t => {
-      const cls = t.result === 'win' ? 'row-win' : 'row-loss';
-      const tds = cols.map(c => `<td>${c.fmt ? c.fmt(t[c.key]) : t[c.key]}</td>`).join('');
-      return `<tr class="${cls}">${tds}</tr>`;
-    }).join('');
-    return `<table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
+  function buildTabs() {
+    let html = '<span style="color:#90a4ae;font-size:0.8em;margin-right:4px">Ticker:</span>';
+    symbols.forEach(s => {
+      const active = s === activeSymbol ? 'background:var(--accent,#636EFA);color:#fff;' : 'background:#2a2a4a;color:#90a4ae;';
+      html += `<button class="tab-btn" data-type="symbol" data-val="${s}" style="${active}border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.8em">${s}</button>`;
+    });
+    html += '<span style="color:#90a4ae;font-size:0.8em;margin:0 4px 0 12px">Strategy:</span>';
+    strategies.forEach(s => {
+      const active = s === activeStrategy ? 'background:var(--accent,#636EFA);color:#fff;' : 'background:#2a2a4a;color:#90a4ae;';
+      const label = s === 'All' ? 'All' : s.replace('_', ' ');
+      html += `<button class="tab-btn" data-type="strategy" data-val="${s}" style="${active}border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.8em">${label}</button>`;
+    });
+    tabWrap.innerHTML = html;
+    tabWrap.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.type === 'symbol') activeSymbol = btn.dataset.val;
+        else activeStrategy = btn.dataset.val;
+        buildTabs();
+        renderTable();
+      });
+    });
+  }
+
+  function getFiltered() {
+    return trades.filter(t => {
+      if (activeSymbol !== 'All' && t.symbol !== activeSymbol) return false;
+      if (activeStrategy !== 'All' && t.strategy !== activeStrategy) return false;
+      return true;
+    });
+  }
+
+  function buildTable(data) {
+    if (!data.length) return '<p style="color:#90a4ae;text-align:center;padding:20px">No trades match filter</p>';
+    // Group by expiry
+    const byExpiry = {};
+    data.forEach(t => {
+      const exp = t.expiry || 'unknown';
+      if (!byExpiry[exp]) byExpiry[exp] = [];
+      byExpiry[exp].push(t);
+    });
+
+    let html = '';
+    Object.entries(byExpiry).sort().forEach(([exp, group]) => {
+      const totalPnl = group.reduce((s, t) => s + (t.pnl || 0), 0);
+      const wins = group.filter(t => t.result === 'win').length;
+      const wr = group.length > 0 ? (wins / group.length * 100).toFixed(0) : 0;
+      const pnlClass = totalPnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+
+      html += `<div style="margin-bottom:16px">`;
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">`;
+      html += `<span style="color:#82b1ff;font-weight:600;font-size:0.9em">Expiry: ${exp} (${group.length} trades)</span>`;
+      html += `<span style="font-size:0.85em">WR: ${wr}% | P&L: <span class="${pnlClass}">${fmtDollar(totalPnl)}</span></span>`;
+      html += `</div>`;
+
+      const thead = cols.map(c => {
+        const arrow = sortCol === c.key ? (sortAsc ? ' &#9650;' : ' &#9660;') : '';
+        return `<th data-col="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
+      }).join('');
+
+      // Sort group, highlight best premium
+      const sorted = [...group];
+      if (sortCol) {
+        sorted.sort((a, b) => {
+          let va = a[sortCol], vb = b[sortCol];
+          if (typeof va === 'string') { va = va.toLowerCase(); vb = (vb||'').toLowerCase(); }
+          return sortAsc ? (va < vb ? -1 : va > vb ? 1 : 0) : (va > vb ? -1 : va < vb ? 1 : 0);
+        });
+      }
+      const maxPremium = Math.max(...sorted.map(t => t.premium || 0));
+
+      const tbody = sorted.map(t => {
+        const cls = t.result === 'win' ? 'row-win' : 'row-loss';
+        const best = t.premium === maxPremium ? ' style="background:rgba(0,230,118,0.08)"' : '';
+        const tds = cols.map(c => {
+          let val = c.fmt ? c.fmt(t[c.key]) : t[c.key];
+          if (c.key === 'premium' && t.premium === maxPremium) val = `<strong>${val}</strong> ★`;
+          return `<td>${val}</td>`;
+        }).join('');
+        return `<tr class="${cls}"${best}>${tds}</tr>`;
+      }).join('');
+
+      html += `<table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
+      html += `</div>`;
+    });
+    return html;
   }
 
   const wrap = document.getElementById('trades-table');
-  let sorted = [...trades];
 
-  function render() {
-    wrap.innerHTML = build(sorted);
+  function renderTable() {
+    const filtered = getFiltered();
+    wrap.innerHTML = buildTable(filtered);
     wrap.querySelectorAll('th').forEach(th => {
       th.addEventListener('click', () => {
         const col = th.dataset.col;
         if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = true; }
-        sorted.sort((a, b) => {
-          let va = a[col], vb = b[col];
-          if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
-          if (va < vb) return sortAsc ? -1 : 1;
-          if (va > vb) return sortAsc ? 1 : -1;
-          return 0;
-        });
-        render();
+        renderTable();
       });
     });
   }
-  render();
+
+  buildTabs();
+  renderTable();
 }
 
 function renderRiskMetrics(s) {
@@ -517,12 +647,17 @@ async function init() {
         <div class="chart-wrap"><div id="chart-wr-ticker" style="height:340px"></div></div>
       </div>
 
-      <!-- Monthly Returns Heatmap -->
-      <h2 class="section-title">Monthly Returns</h2>
-      <div class="chart-wrap"><div id="chart-heatmap" style="height:300px"></div></div>
+      <!-- Monthly Returns: per-strategy breakdown -->
+      <h2 class="section-title">Monthly Returns by Strategy</h2>
+      <div class="chart-row" id="monthly-charts"></div>
 
-      <!-- Recent Trades -->
+      <!-- Strike Comparison: same expiry, different strikes -->
+      <h2 class="section-title">Strike Comparison — Best CP Value</h2>
+      <div class="chart-wrap"><div id="chart-strike-compare" style="height:400px"></div></div>
+
+      <!-- Recent Trades: grouped by symbol + strategy -->
       <h2 class="section-title">Recent Trades</h2>
+      <div id="trade-tabs" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"></div>
       <div class="table-wrap" id="trades-table"></div>
 
       <!-- Risk Metrics -->
@@ -534,16 +669,20 @@ async function init() {
     renderCumulativePnL(data.cumulative_pnl);
     renderWinRateByStrategy(data.strategy_stats);
     renderWinRateByTicker(data.ticker_stats);
-    renderMonthlyHeatmap(data.monthly_returns);
-    renderRecentTrades(data.recent_trades);
+    renderMonthlyByStrategy(data.monthly_returns);
+    renderStrikeComparison(data);
+    renderGroupedTrades(data.recent_trades);
 
     // Fetch and render live stock prices
     fetchLivePrices(data);
 
     // Resize charts on window resize
     window.addEventListener('resize', () => {
-      ['chart-cpnl', 'chart-wr-strategy', 'chart-wr-ticker', 'chart-heatmap'].forEach(id => {
+      ['chart-cpnl', 'chart-wr-strategy', 'chart-wr-ticker', 'chart-strike-compare'].forEach(id => {
         const el = document.getElementById(id);
+        if (el) Plotly.Plots.resize(el);
+      });
+      document.querySelectorAll('[id^="chart-monthly-"]').forEach(el => {
         if (el) Plotly.Plots.resize(el);
       });
     });
