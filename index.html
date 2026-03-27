@@ -498,6 +498,10 @@ async function init() {
 
     // Build the dashboard DOM
     app.innerHTML = `
+      <!-- Live Stock Prices -->
+      <h2 class="section-title">Live Market Data <span id="live-status" style="font-size:0.6em;color:#90a4ae;font-weight:400">Loading...</span></h2>
+      <div class="cards" id="live-prices"></div>
+
       <!-- Performance Summary -->
       <h2 class="section-title">Performance Summary</h2>
       ${renderSummaryCards(data.summary)}
@@ -533,6 +537,9 @@ async function init() {
     renderMonthlyHeatmap(data.monthly_returns);
     renderRecentTrades(data.recent_trades);
 
+    // Fetch and render live stock prices
+    fetchLivePrices(data);
+
     // Resize charts on window resize
     window.addEventListener('resize', () => {
       ['chart-cpnl', 'chart-wr-strategy', 'chart-wr-ticker', 'chart-heatmap'].forEach(id => {
@@ -552,6 +559,158 @@ async function init() {
         </p>
       </div>`;
   }
+}
+
+// ── Live Stock Prices ──────────────────────────────
+const LIVE_TICKERS = ['TSLA', 'AMZN', 'NVDA', 'SPY'];
+const PROXY = 'https://api.allorigins.win/raw?url=';
+
+async function fetchLivePrices(dashData) {
+  const container = document.getElementById('live-prices');
+  const status = document.getElementById('live-status');
+  if (!container) return;
+
+  // Show loading cards
+  container.innerHTML = LIVE_TICKERS.map(t =>
+    `<div class="card" style="min-width:200px">
+       <div class="card-label">${t}</div>
+       <div class="card-value" style="color:#90a4ae">Loading...</div>
+     </div>`
+  ).join('');
+
+  const results = await Promise.allSettled(
+    LIVE_TICKERS.map(t => fetchTickerQuote(t))
+  );
+
+  let html = '';
+  let successCount = 0;
+
+  results.forEach((r, i) => {
+    const ticker = LIVE_TICKERS[i];
+    if (r.status === 'fulfilled' && r.value) {
+      const q = r.value;
+      const changeColor = q.change >= 0 ? '#00e676' : '#ff5252';
+      const changeSign = q.change >= 0 ? '+' : '';
+      const arrow = q.change >= 0 ? '&#9650;' : '&#9660;';
+      html += `
+        <div class="card" style="min-width:200px;cursor:pointer" onclick="toggleIntraday('${ticker}')">
+          <div class="card-label">${ticker} <span style="font-size:0.7em;color:#90a4ae">${q.marketState || ''}</span></div>
+          <div class="card-value">$${q.price.toFixed(2)}</div>
+          <div class="card-sub" style="color:${changeColor}">
+            ${arrow} ${changeSign}${q.change.toFixed(2)} (${changeSign}${q.changePct.toFixed(2)}%)
+          </div>
+          <div class="card-sub" style="font-size:0.7em;color:#90a4ae;margin-top:4px">
+            H: $${q.high.toFixed(2)} | L: $${q.low.toFixed(2)} | V: ${formatVol(q.volume)}
+          </div>
+        </div>`;
+      successCount++;
+    } else {
+      html += `
+        <div class="card" style="min-width:200px">
+          <div class="card-label">${ticker}</div>
+          <div class="card-value" style="color:#90a4ae;font-size:1rem">Unavailable</div>
+        </div>`;
+    }
+  });
+
+  container.innerHTML = html;
+
+  // Add intraday chart container (hidden by default)
+  if (!document.getElementById('intraday-wrap')) {
+    container.insertAdjacentHTML('afterend',
+      '<div id="intraday-wrap" style="display:none;margin-top:1rem">' +
+      '<div class="chart-wrap"><div id="chart-intraday" style="height:350px"></div></div></div>');
+  }
+
+  const now = new Date();
+  status.textContent = successCount > 0
+    ? `Updated ${now.toLocaleTimeString()}`
+    : 'Market data unavailable';
+
+  // Auto-refresh every 60 seconds during market hours
+  setTimeout(() => fetchLivePrices(dashData), 60000);
+}
+
+async function fetchTickerQuote(symbol) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=1d`;
+    const resp = await fetch(PROXY + encodeURIComponent(url));
+    if (!resp.ok) throw new Error(resp.status);
+    const json = await resp.json();
+    const result = json.chart.result[0];
+    const meta = result.meta;
+    const quotes = result.indicators.quote[0];
+    const timestamps = result.timestamp || [];
+    const closes = quotes.close || [];
+
+    const price = meta.regularMarketPrice;
+    const prevClose = meta.previousClose || meta.chartPreviousClose;
+    const change = price - prevClose;
+    const changePct = (change / prevClose) * 100;
+
+    return {
+      symbol,
+      price,
+      change,
+      changePct,
+      high: meta.regularMarketDayHigh || Math.max(...closes.filter(Boolean)),
+      low: meta.regularMarketDayLow || Math.min(...closes.filter(Boolean)),
+      volume: meta.regularMarketVolume || 0,
+      marketState: meta.marketState === 'REGULAR' ? 'LIVE' : meta.marketState || '',
+      timestamps,
+      closes,
+    };
+  } catch (e) {
+    console.warn(`Failed to fetch ${symbol}:`, e);
+    return null;
+  }
+}
+
+// Toggle intraday chart
+let activeIntraday = null;
+async function toggleIntraday(symbol) {
+  const wrap = document.getElementById('intraday-wrap');
+  if (activeIntraday === symbol) {
+    wrap.style.display = 'none';
+    activeIntraday = null;
+    return;
+  }
+  activeIntraday = symbol;
+  wrap.style.display = 'block';
+
+  try {
+    const q = await fetchTickerQuote(symbol);
+    if (!q || !q.timestamps.length) return;
+
+    const times = q.timestamps.map(t => new Date(t * 1000).toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'}));
+    const prices = q.closes.map(v => v === null ? NaN : v);
+    const lineColor = q.change >= 0 ? '#00e676' : '#ff5252';
+
+    Plotly.newPlot('chart-intraday', [{
+      x: times, y: prices,
+      type: 'scatter', mode: 'lines',
+      fill: 'tozeroy',
+      fillcolor: (q.change >= 0 ? 'rgba(0,230,118,0.1)' : 'rgba(255,82,82,0.1)'),
+      line: { color: lineColor, width: 2 },
+      hovertemplate: '%{x}<br>$%{y:.2f}<extra></extra>',
+    }], {
+      ...PLOTLY_LAYOUT_BASE,
+      title: { text: `${symbol} — Intraday`, font: { size: 15, color: '#fff' }, x: 0.01 },
+      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Price ($)', tickprefix: '$' },
+      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: '' },
+      shapes: [{ type: 'line', y0: q.price - q.change, y1: q.price - q.change, x0: 0, x1: 1, xref: 'paper', line: { color: '#90a4ae', width: 1, dash: 'dot' } }],
+    }, PLOTLY_CONFIG);
+  } catch (e) {
+    console.warn('Intraday chart error:', e);
+  }
+}
+
+function formatVol(v) {
+  if (!v) return 'N/A';
+  if (v >= 1e9) return (v/1e9).toFixed(1) + 'B';
+  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return (v/1e3).toFixed(0) + 'K';
+  return v.toString();
 }
 
 document.addEventListener('DOMContentLoaded', init);
