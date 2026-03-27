@@ -702,8 +702,9 @@ async function init() {
     renderStrikeComparison(data);
     renderGroupedTrades(data.recent_trades);
 
-    // Fetch and render live stock prices
-    fetchLivePrices(data);
+    // Render live prices from server-side data (in data.json)
+    renderLivePrices(data.live_prices || []);
+    renderStrikeFromData(data.strike_comparison || []);
 
     // Resize charts on window resize
     window.addEventListener('resize', () => {
@@ -729,159 +730,104 @@ async function init() {
   }
 }
 
-// ── Live Stock Prices ──────────────────────────────
-const LIVE_TICKERS = ['TSLA', 'AMZN', 'NVDA', 'SPY'];
-// Try multiple CORS proxies for reliability
-const PROXIES = [
-  'https://api.allorigins.win/raw?url=',
-  'https://corsproxy.io/?',
-  'https://api.codetabs.com/v1/proxy?quest=',
-];
-
-async function fetchLivePrices(dashData) {
+// ── Live Prices (from server-side data.json) ─────────────
+function renderLivePrices(prices) {
   const container = document.getElementById('live-prices');
   const status = document.getElementById('live-status');
   if (!container) return;
 
-  // Show loading cards
-  container.innerHTML = LIVE_TICKERS.map(t =>
-    `<div class="card" style="min-width:200px">
-       <div class="card-label">${t}</div>
-       <div class="card-value" style="color:#90a4ae">Loading...</div>
-     </div>`
-  ).join('');
-
-  const results = await Promise.allSettled(
-    LIVE_TICKERS.map(t => fetchTickerQuote(t))
-  );
+  if (!prices || !prices.length) {
+    container.innerHTML = '<p style="color:#90a4ae;font-size:0.9em">Price data updates when dashboard workflow runs. Trigger manually from GitHub Actions.</p>';
+    if (status) status.textContent = 'Awaiting data';
+    return;
+  }
 
   let html = '';
-  let successCount = 0;
+  prices.forEach(q => {
+    const changeColor = q.change >= 0 ? '#00e676' : '#ff5252';
+    const changeSign = q.change >= 0 ? '+' : '';
+    const arrow = q.change >= 0 ? '&#9650;' : '&#9660;';
+    const state = q.market_state === 'REGULAR' ? 'LIVE' : q.market_state || '';
 
-  results.forEach((r, i) => {
-    const ticker = LIVE_TICKERS[i];
-    if (r.status === 'fulfilled' && r.value) {
-      const q = r.value;
-      const changeColor = q.change >= 0 ? '#00e676' : '#ff5252';
-      const changeSign = q.change >= 0 ? '+' : '';
-      const arrow = q.change >= 0 ? '&#9650;' : '&#9660;';
-      html += `
-        <div class="card" style="min-width:200px;cursor:pointer" onclick="toggleIntraday('${ticker}')">
-          <div class="card-label">${ticker} <span style="font-size:0.7em;color:#90a4ae">${q.marketState || ''}</span></div>
-          <div class="card-value">$${q.price.toFixed(2)}</div>
-          <div class="card-sub" style="color:${changeColor}">
-            ${arrow} ${changeSign}${q.change.toFixed(2)} (${changeSign}${q.changePct.toFixed(2)}%)
-          </div>
-          <div class="card-sub" style="font-size:0.7em;color:#90a4ae;margin-top:4px">
-            H: $${q.high.toFixed(2)} | L: $${q.low.toFixed(2)} | V: ${formatVol(q.volume)}
-          </div>
-        </div>`;
-      successCount++;
-    } else {
-      html += `
-        <div class="card" style="min-width:200px">
-          <div class="card-label">${ticker}</div>
-          <div class="card-value" style="color:#90a4ae;font-size:1rem">Market Closed</div>
-          <div class="card-sub" style="color:#616161;font-size:0.75em">Live data available during trading hours (9:30-4:00 ET)</div>
-        </div>`;
+    // Mini sparkline from intraday data
+    let sparkHtml = '';
+    if (q.intraday_prices && q.intraday_prices.length > 2) {
+      const min = Math.min(...q.intraday_prices);
+      const max = Math.max(...q.intraday_prices);
+      const range = max - min || 1;
+      const h = 30;
+      const w = 120;
+      const step = w / (q.intraday_prices.length - 1);
+      const points = q.intraday_prices.map((p, i) => `${i * step},${h - ((p - min) / range) * h}`).join(' ');
+      sparkHtml = `<svg width="${w}" height="${h}" style="margin-top:6px"><polyline points="${points}" fill="none" stroke="${changeColor}" stroke-width="1.5" opacity="0.8"/></svg>`;
     }
+
+    html += `
+      <div class="card" style="min-width:200px">
+        <div class="card-label">${q.symbol} <span style="font-size:0.7em;color:#90a4ae">${state}</span></div>
+        <div class="card-value">$${q.price.toFixed(2)}</div>
+        <div class="card-sub" style="color:${changeColor}">
+          ${arrow} ${changeSign}${q.change.toFixed(2)} (${changeSign}${q.change_pct.toFixed(2)}%)
+        </div>
+        <div class="card-sub" style="font-size:0.7em;color:#90a4ae;margin-top:4px">
+          H: $${q.high.toFixed(2)} | L: $${q.low.toFixed(2)} | V: ${formatVol(q.volume)}
+        </div>
+        ${sparkHtml}
+      </div>`;
   });
 
   container.innerHTML = html;
-
-  // Add intraday chart container (hidden by default)
-  if (!document.getElementById('intraday-wrap')) {
-    container.insertAdjacentHTML('afterend',
-      '<div id="intraday-wrap" style="display:none;margin-top:1rem">' +
-      '<div class="chart-wrap"><div id="chart-intraday" style="height:350px"></div></div></div>');
-  }
-
-  const now = new Date();
-  status.textContent = successCount > 0
-    ? `Updated ${now.toLocaleTimeString()}`
-    : 'Market data unavailable';
-
-  // Auto-refresh every 60 seconds during market hours
-  setTimeout(() => fetchLivePrices(dashData), 60000);
+  if (status) status.textContent = 'From last workflow run';
 }
 
-async function fetchTickerQuote(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=1d`;
-
-  for (const proxy of PROXIES) {
-    try {
-      const resp = await fetch(proxy + encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
-      if (!resp.ok) continue;
-      const json = await resp.json();
-      if (!json.chart || !json.chart.result) continue;
-      const result = json.chart.result[0];
-      const meta = result.meta;
-      const quotes = result.indicators.quote[0];
-      const timestamps = result.timestamp || [];
-      const closes = quotes.close || [];
-
-      const price = meta.regularMarketPrice;
-      const prevClose = meta.previousClose || meta.chartPreviousClose;
-      const change = price - prevClose;
-      const changePct = (change / prevClose) * 100;
-
-      return {
-        symbol,
-        price,
-        change,
-        changePct,
-        high: meta.regularMarketDayHigh || Math.max(...closes.filter(Boolean)),
-        low: meta.regularMarketDayLow || Math.min(...closes.filter(Boolean)),
-        volume: meta.regularMarketVolume || 0,
-        marketState: meta.marketState === 'REGULAR' ? 'LIVE' : meta.marketState || '',
-        timestamps,
-        closes,
-      };
-    } catch (e) {
-      continue; // try next proxy
-    }
-  }
-  console.warn(`All proxies failed for ${symbol}`);
-  return null;
-}
-
-// Toggle intraday chart
-let activeIntraday = null;
-async function toggleIntraday(symbol) {
-  const wrap = document.getElementById('intraday-wrap');
-  if (activeIntraday === symbol) {
-    wrap.style.display = 'none';
-    activeIntraday = null;
+// ── Strike Comparison from live options data ──────────────
+function renderStrikeFromData(strikes) {
+  const el = document.getElementById('chart-strike-compare');
+  if (!strikes || !strikes.length) {
+    el.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:40px">Strike data updates when dashboard workflow runs</p>';
     return;
   }
-  activeIntraday = symbol;
-  wrap.style.display = 'block';
 
-  try {
-    const q = await fetchTickerQuote(symbol);
-    if (!q || !q.timestamps.length) return;
+  // Group by symbol
+  const bySymbol = {};
+  strikes.forEach(s => {
+    if (!bySymbol[s.symbol]) bySymbol[s.symbol] = [];
+    bySymbol[s.symbol].push(s);
+  });
 
-    const times = q.timestamps.map(t => new Date(t * 1000).toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'}));
-    const prices = q.closes.map(v => v === null ? NaN : v);
-    const lineColor = q.change >= 0 ? '#00e676' : '#ff5252';
+  const symColors = { TSLA: '#EF553B', AMZN: '#636EFA', NVDA: '#00CC96' };
+  const traces = [];
 
-    Plotly.newPlot('chart-intraday', [{
-      x: times, y: prices,
-      type: 'scatter', mode: 'lines',
-      fill: 'tozeroy',
-      fillcolor: (q.change >= 0 ? 'rgba(0,230,118,0.1)' : 'rgba(255,82,82,0.1)'),
-      line: { color: lineColor, width: 2 },
-      hovertemplate: '%{x}<br>$%{y:.2f}<extra></extra>',
-    }], {
-      ...PLOTLY_LAYOUT_BASE,
-      title: { text: `${symbol} — Intraday`, font: { size: 15, color: '#fff' }, x: 0.01 },
-      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Price ($)', tickprefix: '$' },
-      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: '' },
-      shapes: [{ type: 'line', y0: q.price - q.change, y1: q.price - q.change, x0: 0, x1: 1, xref: 'paper', line: { color: '#90a4ae', width: 1, dash: 'dot' } }],
-    }, PLOTLY_CONFIG);
-  } catch (e) {
-    console.warn('Intraday chart error:', e);
-  }
+  Object.entries(bySymbol).sort().forEach(([sym, items]) => {
+    const sorted = items.sort((a, b) => b.premium - a.premium);
+
+    traces.push({
+      x: sorted.map(s => `$${s.strike}`),
+      y: sorted.map(s => s.premium),
+      name: sym,
+      type: 'bar',
+      marker: { color: symColors[sym] || '#82b1ff', opacity: 0.85 },
+      text: sorted.map(s =>
+        `$${s.premium.toFixed(2)} | ${s.otm_pct}% OTM | ${s.dte}d | Ann: ${s.annualized}%`
+      ),
+      textposition: 'outside',
+      textfont: { size: 9, color: '#e0e0e0' },
+      hovertemplate:
+        '<b>%{x}</b><br>' +
+        'Premium: $%{y:.2f}<br>' +
+        '%{text}<br>' +
+        '<extra>' + sym + '</extra>',
+    });
+  });
+
+  Plotly.newPlot(el, traces, {
+    ...PLOTLY_LAYOUT_BASE,
+    title: { text: 'Current Options — Premium by Strike (DTE ≥ 5, $1-$7)', font: { size: 14, color: '#fff' }, x: 0.01 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Strike Price', tickangle: -45 },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Premium ($)', tickprefix: '$' },
+    barmode: 'group',
+    legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.25 },
+  }, PLOTLY_CONFIG);
 }
 
 function formatVol(v) {

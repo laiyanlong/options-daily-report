@@ -508,10 +508,118 @@ def generate_dashboard_data() -> dict:
         return generate_sample_data()
 
 
+def _fetch_live_prices(tickers: list[str] = None) -> list[dict]:
+    """Fetch current stock prices via yfinance (server-side, no CORS issues)."""
+    if tickers is None:
+        tickers = ["TSLA", "AMZN", "NVDA", "SPY"]
+    prices = []
+    for sym in tickers:
+        try:
+            tk = yf.Ticker(sym)
+            info = tk.info
+            price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose", 0)
+            prev = info.get("previousClose") or info.get("regularMarketPreviousClose", price)
+            change = price - prev if prev else 0
+            change_pct = (change / prev * 100) if prev else 0
+
+            # Get intraday data for mini chart
+            hist = tk.history(period="1d", interval="5m")
+            intraday_prices = hist["Close"].dropna().tolist()[-50:] if not hist.empty else []
+            intraday_times = [t.strftime("%H:%M") for t in hist.index[-50:]] if not hist.empty else []
+
+            prices.append({
+                "symbol": sym,
+                "price": round(price, 2),
+                "change": round(change, 2),
+                "change_pct": round(change_pct, 2),
+                "high": round(info.get("regularMarketDayHigh", info.get("dayHigh", 0)) or 0, 2),
+                "low": round(info.get("regularMarketDayLow", info.get("dayLow", 0)) or 0, 2),
+                "volume": info.get("regularMarketVolume", info.get("volume", 0)) or 0,
+                "market_state": info.get("marketState", "CLOSED"),
+                "intraday_prices": [round(p, 2) for p in intraday_prices],
+                "intraday_times": intraday_times,
+            })
+        except Exception as e:
+            print(f"  Warning: failed to fetch {sym}: {e}")
+    return prices
+
+
+def _fetch_strike_comparison(tickers: list[str] = None) -> list[dict]:
+    """Fetch current options chain and build strike comparison data."""
+    if tickers is None:
+        tickers = ["TSLA", "AMZN", "NVDA"]
+    strikes = []
+    for sym in tickers:
+        try:
+            tk = yf.Ticker(sym)
+            info = tk.info
+            price = info.get("currentPrice") or info.get("regularMarketPrice") or 0
+            if not price:
+                continue
+
+            expiries = tk.options
+            # Skip expiries < 5 DTE
+            valid_expiries = []
+            for exp in expiries:
+                dte = (datetime.strptime(exp, "%Y-%m-%d") - datetime.now()).days
+                if dte >= 5:
+                    valid_expiries.append(exp)
+                if len(valid_expiries) >= 3:
+                    break
+
+            for exp in valid_expiries:
+                chain = tk.option_chain(exp)
+                dte = (datetime.strptime(exp, "%Y-%m-%d") - datetime.now()).days
+
+                # Sell Puts: 5-10% OTM
+                for pct in [5, 7, 10]:
+                    target = price * (1 - pct / 100)
+                    puts = chain.puts
+                    if puts.empty:
+                        continue
+                    closest_idx = (puts["strike"] - target).abs().idxmin()
+                    row = puts.loc[closest_idx]
+                    bid = float(row.get("bid", 0) or 0)
+                    if bid < 1.0 or bid > 7.0:
+                        continue
+                    iv = float(row.get("impliedVolatility", 0) or 0) * 100
+                    strike_val = float(row["strike"])
+                    otm = round((strike_val - price) / price * 100, 1)
+                    ann = round(bid / strike_val * 365 / max(dte, 1) * 100, 1) if strike_val > 0 else 0
+
+                    strikes.append({
+                        "symbol": sym,
+                        "strategy": "sell_put",
+                        "strike": round(strike_val, 2),
+                        "premium": round(bid, 2),
+                        "iv": round(iv, 1),
+                        "otm_pct": otm,
+                        "dte": dte,
+                        "expiry": exp,
+                        "annualized": ann,
+                    })
+        except Exception as e:
+            print(f"  Warning: failed to get options for {sym}: {e}")
+    return strikes
+
+
 if __name__ == "__main__":
     data = generate_dashboard_data()
+
+    # Add live prices (server-side fetch, no CORS)
+    print("\nFetching live prices...")
+    data["live_prices"] = _fetch_live_prices()
+    for p in data["live_prices"]:
+        sign = "+" if p["change"] >= 0 else ""
+        print(f"  {p['symbol']}: ${p['price']} ({sign}{p['change_pct']:.2f}%)")
+
+    # Add strike comparison from live options chain
+    print("\nFetching strike comparison data...")
+    data["strike_comparison"] = _fetch_strike_comparison()
+    print(f"  {len(data['strike_comparison'])} strike entries")
+
     output = Path(__file__).parent / "data.json"
     output.write_text(json.dumps(data, indent=2), encoding="utf-8")
-    print(f"Dashboard data written to {output}")
+    print(f"\nDashboard data written to {output}")
     print(f"Total trades: {data['summary']['total_trades']}")
     print(f"Win rate: {data['summary']['win_rate']:.1f}%")
