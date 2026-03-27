@@ -563,7 +563,12 @@ async function init() {
 
 // ── Live Stock Prices ──────────────────────────────
 const LIVE_TICKERS = ['TSLA', 'AMZN', 'NVDA', 'SPY'];
-const PROXY = 'https://api.allorigins.win/raw?url=';
+// Try multiple CORS proxies for reliability
+const PROXIES = [
+  'https://api.allorigins.win/raw?url=',
+  'https://corsproxy.io/?',
+  'https://api.codetabs.com/v1/proxy?quest=',
+];
 
 async function fetchLivePrices(dashData) {
   const container = document.getElementById('live-prices');
@@ -608,7 +613,8 @@ async function fetchLivePrices(dashData) {
       html += `
         <div class="card" style="min-width:200px">
           <div class="card-label">${ticker}</div>
-          <div class="card-value" style="color:#90a4ae;font-size:1rem">Unavailable</div>
+          <div class="card-value" style="color:#90a4ae;font-size:1rem">Market Closed</div>
+          <div class="card-sub" style="color:#616161;font-size:0.75em">Live data available during trading hours (9:30-4:00 ET)</div>
         </div>`;
     }
   });
@@ -632,38 +638,43 @@ async function fetchLivePrices(dashData) {
 }
 
 async function fetchTickerQuote(symbol) {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=1d`;
-    const resp = await fetch(PROXY + encodeURIComponent(url));
-    if (!resp.ok) throw new Error(resp.status);
-    const json = await resp.json();
-    const result = json.chart.result[0];
-    const meta = result.meta;
-    const quotes = result.indicators.quote[0];
-    const timestamps = result.timestamp || [];
-    const closes = quotes.close || [];
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=5m&range=1d`;
 
-    const price = meta.regularMarketPrice;
-    const prevClose = meta.previousClose || meta.chartPreviousClose;
-    const change = price - prevClose;
-    const changePct = (change / prevClose) * 100;
+  for (const proxy of PROXIES) {
+    try {
+      const resp = await fetch(proxy + encodeURIComponent(url), {signal: AbortSignal.timeout(8000)});
+      if (!resp.ok) continue;
+      const json = await resp.json();
+      if (!json.chart || !json.chart.result) continue;
+      const result = json.chart.result[0];
+      const meta = result.meta;
+      const quotes = result.indicators.quote[0];
+      const timestamps = result.timestamp || [];
+      const closes = quotes.close || [];
 
-    return {
-      symbol,
-      price,
-      change,
-      changePct,
-      high: meta.regularMarketDayHigh || Math.max(...closes.filter(Boolean)),
-      low: meta.regularMarketDayLow || Math.min(...closes.filter(Boolean)),
-      volume: meta.regularMarketVolume || 0,
-      marketState: meta.marketState === 'REGULAR' ? 'LIVE' : meta.marketState || '',
-      timestamps,
-      closes,
-    };
-  } catch (e) {
-    console.warn(`Failed to fetch ${symbol}:`, e);
-    return null;
+      const price = meta.regularMarketPrice;
+      const prevClose = meta.previousClose || meta.chartPreviousClose;
+      const change = price - prevClose;
+      const changePct = (change / prevClose) * 100;
+
+      return {
+        symbol,
+        price,
+        change,
+        changePct,
+        high: meta.regularMarketDayHigh || Math.max(...closes.filter(Boolean)),
+        low: meta.regularMarketDayLow || Math.min(...closes.filter(Boolean)),
+        volume: meta.regularMarketVolume || 0,
+        marketState: meta.marketState === 'REGULAR' ? 'LIVE' : meta.marketState || '',
+        timestamps,
+        closes,
+      };
+    } catch (e) {
+      continue; // try next proxy
+    }
   }
+  console.warn(`All proxies failed for ${symbol}`);
+  return null;
 }
 
 // Toggle intraday chart
