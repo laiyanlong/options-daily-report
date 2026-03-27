@@ -359,12 +359,12 @@ def _fetch_and_backtest_trades() -> list[dict]:
 
     today_str = datetime.now().strftime("%Y-%m-%d")
 
-    # Fetch all expired trades
+    # Fetch only truly expired trades (expiry strictly before today)
     cur.execute("""
         SELECT id, date, symbol, strategy, strike, premium_bid, iv, delta,
                cp_score, pop, expiry_date
         FROM trades
-        WHERE expiry_date IS NOT NULL AND expiry_date <= ?
+        WHERE expiry_date IS NOT NULL AND expiry_date < ?
         ORDER BY date
     """, (today_str,))
 
@@ -497,11 +497,14 @@ def generate_dashboard_data() -> dict:
     """
     trades = _fetch_and_backtest_trades()
 
-    if trades:
-        print(f"[dashboard] Found {len(trades)} expired trades in database.")
+    # Need at least 10 backtested trades across multiple days for meaningful stats
+    unique_dates = set(t["entry_date"] for t in trades) if trades else set()
+    if trades and len(trades) >= 10 and len(unique_dates) >= 3:
+        print(f"[dashboard] Found {len(trades)} expired trades across {len(unique_dates)} days.")
         return _build_dashboard_payload(trades)
     else:
-        print("[dashboard] No trade data found — generating sample data for demo.")
+        reason = f"only {len(trades)} trades across {len(unique_dates)} days" if trades else "no expired trades yet"
+        print(f"[dashboard] Insufficient real data ({reason}) — using sample data for demo.")
         return generate_sample_data()
 
 
