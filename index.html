@@ -425,48 +425,77 @@ function renderMonthlyByStrategy(monthly) {
 // ── Strike Comparison: best CP across expiry dates ──────
 function renderStrikeComparison(data) {
   const el = document.getElementById('chart-strike-compare');
-  if (!data.recent_trades || !data.recent_trades.length) {
+  const trades = data.recent_trades || [];
+  if (!trades.length) {
     el.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:40px">Strike comparison available when trades accumulate</p>';
     return;
   }
 
-  // Group trades by expiry, show premium vs strike with CP-like metric
-  const byExpiry = {};
-  data.recent_trades.forEach(t => {
-    const key = t.expiry || 'unknown';
-    if (!byExpiry[key]) byExpiry[key] = [];
-    byExpiry[key].push(t);
+  // Group by symbol → show premium & P&L per strike, sorted by premium desc
+  const bySymbol = {};
+  trades.forEach(t => {
+    if (!bySymbol[t.symbol]) bySymbol[t.symbol] = [];
+    bySymbol[t.symbol].push(t);
   });
 
+  const symbols = Object.keys(bySymbol).sort();
+  const symColors = { TSLA: '#EF553B', AMZN: '#636EFA', NVDA: '#00CC96' };
   const traces = [];
-  const expiryColors = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA', '#FFA15A'];
-  let colorIdx = 0;
 
-  Object.entries(byExpiry).sort().forEach(([exp, trades]) => {
-    const sorted = [...trades].sort((a, b) => a.strike - b.strike);
+  symbols.forEach(sym => {
+    const symTrades = bySymbol[sym].sort((a, b) => b.premium - a.premium);
+    // Take top 8 by premium to avoid clutter
+    const top = symTrades.slice(0, 8);
+
     traces.push({
-      x: sorted.map(t => '$' + t.strike),
-      y: sorted.map(t => t.premium),
-      name: exp,
+      x: top.map(t => `$${t.strike}`),
+      y: top.map(t => t.premium),
+      name: sym + ' (Premium)',
       type: 'bar',
-      marker: { color: expiryColors[colorIdx % expiryColors.length] },
-      text: sorted.map(t => {
-        const sym = t.symbol || '';
-        const strat = t.strategy || '';
-        return `${sym} ${strat}`;
+      marker: { color: symColors[sym] || '#82b1ff', opacity: 0.85 },
+      text: top.map(t => {
+        const wr = t.result === 'win' ? '✅' : '❌';
+        return `$${t.premium.toFixed(2)} | ${t.strategy.replace('_',' ')} | ${t.expiry} ${wr}`;
       }),
-      hovertemplate: 'Strike: %{x}<br>Premium: $%{y:.2f}<br>%{text}<br>Expiry: ' + exp + '<extra></extra>',
+      textposition: 'outside',
+      textfont: { size: 10, color: '#e0e0e0' },
+      hovertemplate: '<b>%{x}</b><br>' +
+        'Premium: $%{y:.2f}<br>' +
+        '%{text}<extra>' + sym + '</extra>',
     });
-    colorIdx++;
+  });
+
+  // Add a scatter trace for P&L overlay
+  symbols.forEach(sym => {
+    const symTrades = bySymbol[sym].sort((a, b) => b.premium - a.premium).slice(0, 8);
+    traces.push({
+      x: symTrades.map(t => `$${t.strike}`),
+      y: symTrades.map(t => t.pnl),
+      name: sym + ' (P&L)',
+      type: 'scatter',
+      mode: 'markers+text',
+      marker: {
+        color: symTrades.map(t => t.pnl >= 0 ? '#00e676' : '#ff5252'),
+        size: 12,
+        symbol: 'diamond',
+      },
+      text: symTrades.map(t => (t.pnl >= 0 ? '+' : '') + '$' + t.pnl.toFixed(2)),
+      textposition: 'top center',
+      textfont: { size: 9, color: symTrades.map(t => t.pnl >= 0 ? '#00e676' : '#ff5252') },
+      yaxis: 'y2',
+      hovertemplate: 'Strike: %{x}<br>P&L: %{text}<extra>' + sym + ' P&L</extra>',
+    });
   });
 
   Plotly.newPlot(el, traces, {
     ...PLOTLY_LAYOUT_BASE,
-    title: { text: 'Premium by Strike & Expiry Date', font: { size: 15, color: '#fff' }, x: 0.01 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Strike Price' },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Premium ($)', tickprefix: '$' },
+    title: { text: 'Strike Comparison — Premium vs P&L by Ticker', font: { size: 15, color: '#fff' }, x: 0.01 },
+    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Strike Price', categoryorder: 'total descending' },
+    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Premium ($)', tickprefix: '$', side: 'left' },
+    yaxis2: { title: 'P&L ($)', tickprefix: '$', overlaying: 'y', side: 'right', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#90a4ae' }, titlefont: { color: '#90a4ae' }, zeroline: true, zerolinecolor: '#555' },
     barmode: 'group',
-    legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.2 },
+    legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.22 },
+    showlegend: true,
   }, PLOTLY_CONFIG);
 }
 
