@@ -1122,7 +1122,21 @@ def main():
 
     report_lines.append(generate_final_summary(all_results))
 
-    # AI market commentary (optional, requires ANTHROPIC_API_KEY)
+    # Model verdict — comprehensive 9-model analysis
+    try:
+        from model_verdict import generate_model_verdict
+
+        print("\nGenerating model verdict...")
+        verdict_section = generate_model_verdict(TICKERS, all_results)
+        report_lines.append("")
+        report_lines.append("---")
+        report_lines.append("")
+        report_lines.append(verdict_section)
+        print("  Model verdict added.")
+    except Exception as e:
+        print(f"  Model verdict skipped: {e}")
+
+    # AI market commentary (optional, requires GEMINI_API_KEY)
     try:
         from ai_analysis import generate_ai_commentary
 
