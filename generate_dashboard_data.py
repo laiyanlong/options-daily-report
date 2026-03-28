@@ -603,6 +603,195 @@ def _fetch_strike_comparison(tickers: list[str] = None) -> list[dict]:
     return strikes
 
 
+def _fetch_tsla_options_matrix() -> dict:
+    """Fetch TSLA options chain and build a full matrix: same expiry, multiple strikes."""
+    import math
+    from scipy.stats import norm
+
+    try:
+        tk = yf.Ticker("TSLA")
+        info = tk.info
+        price = info.get("currentPrice") or info.get("regularMarketPrice") or 0
+        if not price:
+            return {}
+
+        r = 0.05  # risk-free rate
+
+        expiries = tk.options
+        result = {"price": round(price, 2), "expiries": []}
+
+        for exp in expiries:
+            dte = (datetime.strptime(exp, "%Y-%m-%d") - datetime.now()).days
+            if dte < 5 or dte > 60:
+                continue
+
+            chain = tk.option_chain(exp)
+
+            # --- Puts matrix ---
+            puts = chain.puts
+            if puts.empty:
+                continue
+
+            # Filter: 3-15% OTM, bid >= $0.50
+            otm_puts = puts[
+                (puts["strike"] >= price * 0.85)
+                & (puts["strike"] <= price * 0.97)
+                & (puts["bid"] >= 0.50)
+            ].copy()
+
+            if otm_puts.empty:
+                continue
+
+            put_rows = []
+            for _, row in otm_puts.iterrows():
+                strike = float(row["strike"])
+                bid = float(row.get("bid", 0) or 0)
+                ask = float(row.get("ask", 0) or 0)
+                iv = float(row.get("impliedVolatility", 0) or 0) * 100
+                oi = int(row.get("openInterest", 0) or 0)
+                vol = int(row.get("volume", 0) or 0)
+                otm_pct = round((strike - price) / price * 100, 2)
+                mid = round((bid + ask) / 2, 2) if ask > 0 else bid
+                spread_pct = round((ask - bid) / mid * 100, 1) if mid > 0 else 999
+
+                # Annualized return
+                ann = round(bid / strike * 365 / max(dte, 1) * 100, 1) if strike > 0 else 0
+
+                # POP via Black-Scholes
+                pop = 50.0
+                try:
+                    if iv > 0 and dte > 0:
+                        T = dte / 365.0
+                        sigma = iv / 100.0
+                        d2 = (math.log(price / strike) + (r - 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
+                        pop = round(norm.cdf(d2) * 100, 1)
+                except Exception:
+                    pass
+
+                # Delta estimate
+                delta = 0.0
+                try:
+                    if iv > 0 and dte > 0:
+                        T = dte / 365.0
+                        sigma = iv / 100.0
+                        d1 = (math.log(price / strike) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
+                        delta = round(norm.cdf(d1) - 1, 4)
+                except Exception:
+                    pass
+
+                # Spread quality
+                if spread_pct < 5:
+                    spread_q = "Excellent"
+                elif spread_pct < 10:
+                    spread_q = "Good"
+                elif spread_pct < 20:
+                    spread_q = "Fair"
+                else:
+                    spread_q = "Poor"
+
+                put_rows.append({
+                    "strike": round(strike, 2),
+                    "otm_pct": otm_pct,
+                    "bid": round(bid, 2),
+                    "ask": round(ask, 2),
+                    "mid": mid,
+                    "spread_pct": spread_pct,
+                    "spread_quality": spread_q,
+                    "iv": round(iv, 1),
+                    "delta": delta,
+                    "volume": vol,
+                    "oi": oi,
+                    "annualized": ann,
+                    "pop": pop,
+                })
+
+            # Sort by strike descending (closest to ATM first)
+            put_rows.sort(key=lambda x: x["strike"], reverse=True)
+
+            # --- Calls matrix ---
+            calls = chain.calls
+            otm_calls = calls[
+                (calls["strike"] >= price * 1.03)
+                & (calls["strike"] <= price * 1.15)
+                & (calls["bid"] >= 0.50)
+            ].copy() if not calls.empty else puts.iloc[:0]
+
+            call_rows = []
+            for _, row in otm_calls.iterrows():
+                strike = float(row["strike"])
+                bid = float(row.get("bid", 0) or 0)
+                ask = float(row.get("ask", 0) or 0)
+                iv = float(row.get("impliedVolatility", 0) or 0) * 100
+                oi = int(row.get("openInterest", 0) or 0)
+                vol = int(row.get("volume", 0) or 0)
+                otm_pct = round((strike - price) / price * 100, 2)
+                mid = round((bid + ask) / 2, 2) if ask > 0 else bid
+                spread_pct = round((ask - bid) / mid * 100, 1) if mid > 0 else 999
+                ann = round(bid / strike * 365 / max(dte, 1) * 100, 1) if strike > 0 else 0
+
+                pop = 50.0
+                try:
+                    if iv > 0 and dte > 0:
+                        T = dte / 365.0
+                        sigma = iv / 100.0
+                        d2 = (math.log(price / strike) + (r - 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
+                        pop = round((1 - norm.cdf(d2)) * 100, 1)
+                except Exception:
+                    pass
+
+                delta = 0.0
+                try:
+                    if iv > 0 and dte > 0:
+                        T = dte / 365.0
+                        sigma = iv / 100.0
+                        d1 = (math.log(price / strike) + (r + 0.5 * sigma**2) * T) / (sigma * math.sqrt(T))
+                        delta = round(norm.cdf(d1), 4)
+                except Exception:
+                    pass
+
+                if spread_pct < 5:
+                    spread_q = "Excellent"
+                elif spread_pct < 10:
+                    spread_q = "Good"
+                elif spread_pct < 20:
+                    spread_q = "Fair"
+                else:
+                    spread_q = "Poor"
+
+                call_rows.append({
+                    "strike": round(strike, 2),
+                    "otm_pct": otm_pct,
+                    "bid": round(bid, 2),
+                    "ask": round(ask, 2),
+                    "mid": mid,
+                    "spread_pct": spread_pct,
+                    "spread_quality": spread_q,
+                    "iv": round(iv, 1),
+                    "delta": delta,
+                    "volume": vol,
+                    "oi": oi,
+                    "annualized": ann,
+                    "pop": pop,
+                })
+
+            call_rows.sort(key=lambda x: x["strike"])
+
+            result["expiries"].append({
+                "date": exp,
+                "dte": dte,
+                "puts": put_rows,
+                "calls": call_rows,
+            })
+
+            if len(result["expiries"]) >= 5:
+                break
+
+        return result
+    except Exception as e:
+        print(f"  Warning: TSLA matrix failed: {e}")
+        return {}
+
+
 if __name__ == "__main__":
     data = generate_dashboard_data()
 
@@ -617,6 +806,14 @@ if __name__ == "__main__":
     print("\nFetching strike comparison data...")
     data["strike_comparison"] = _fetch_strike_comparison()
     print(f"  {len(data['strike_comparison'])} strike entries")
+
+    # TSLA Options Matrix
+    print("\nFetching TSLA options matrix...")
+    data["tsla_matrix"] = _fetch_tsla_options_matrix()
+    if data["tsla_matrix"] and data["tsla_matrix"].get("expiries"):
+        total_puts = sum(len(e["puts"]) for e in data["tsla_matrix"]["expiries"])
+        total_calls = sum(len(e["calls"]) for e in data["tsla_matrix"]["expiries"])
+        print(f"  TSLA ${data['tsla_matrix']['price']}: {len(data['tsla_matrix']['expiries'])} expiries, {total_puts} puts, {total_calls} calls")
 
     output = Path(__file__).parent / "data.json"
     output.write_text(json.dumps(data, indent=2), encoding="utf-8")

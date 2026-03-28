@@ -499,6 +499,146 @@ function renderStrikeComparison(data) {
   }, PLOTLY_CONFIG);
 }
 
+// ── TSLA Options Matrix ──────────────────────────────────
+function renderTslaMatrix(matrix) {
+  const chartEl = document.getElementById('tsla-matrix-chart');
+  const tableEl = document.getElementById('tsla-matrix-table');
+  const tabEl = document.getElementById('tsla-matrix-tabs');
+
+  if (!matrix || !matrix.expiries || !matrix.expiries.length) {
+    chartEl.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:60px">TSLA matrix data updates when dashboard workflow runs</p>';
+    return;
+  }
+
+  const price = matrix.price;
+  let activeExpIdx = 0;
+  let activeType = 'puts'; // 'puts' or 'calls'
+
+  function buildTabs() {
+    let html = '<span style="color:#90a4ae;font-size:0.8em;margin-right:4px">Expiry:</span>';
+    matrix.expiries.forEach((exp, i) => {
+      const active = i === activeExpIdx ? 'background:#EF553B;color:#fff;' : 'background:#2a2a4a;color:#90a4ae;';
+      html += `<button class="mtab" data-idx="${i}" style="${active}border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:0.8em">${exp.date} (${exp.dte}d)</button>`;
+    });
+    html += '<span style="color:#90a4ae;font-size:0.8em;margin:0 4px 0 16px">Type:</span>';
+    ['puts', 'calls'].forEach(t => {
+      const active = t === activeType ? 'background:#636EFA;color:#fff;' : 'background:#2a2a4a;color:#90a4ae;';
+      html += `<button class="mtab" data-type="${t}" style="${active}border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:0.8em">${t === 'puts' ? 'Sell Put' : 'Sell Call'}</button>`;
+    });
+    tabEl.innerHTML = html;
+    tabEl.querySelectorAll('.mtab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.idx !== undefined) activeExpIdx = parseInt(btn.dataset.idx);
+        if (btn.dataset.type) activeType = btn.dataset.type;
+        buildTabs();
+        renderView();
+      });
+    });
+  }
+
+  function renderView() {
+    const exp = matrix.expiries[activeExpIdx];
+    const rows = activeType === 'puts' ? exp.puts : exp.calls;
+    if (!rows || !rows.length) {
+      chartEl.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:40px">No data for this selection</p>';
+      tableEl.innerHTML = '';
+      return;
+    }
+
+    // Find best annualized return
+    const bestAnn = Math.max(...rows.map(r => r.annualized));
+
+    // ── Chart: multi-axis bar + scatter ──
+    const strikes = rows.map(r => '$' + r.strike);
+
+    // Premium bars
+    const premiumTrace = {
+      x: strikes, y: rows.map(r => r.bid), name: 'Premium (Bid)',
+      type: 'bar', marker: { color: rows.map(r => r.annualized === bestAnn ? '#f5c542' : '#EF553B'), opacity: 0.85 },
+      text: rows.map(r => '$' + r.bid.toFixed(2)),
+      textposition: 'outside', textfont: { size: 10, color: '#e0e0e0' },
+      hovertemplate: 'Strike: %{x}<br>Bid: $%{y:.2f}<extra>Premium</extra>',
+    };
+
+    // IV line
+    const ivTrace = {
+      x: strikes, y: rows.map(r => r.iv), name: 'IV %',
+      type: 'scatter', mode: 'lines+markers+text',
+      line: { color: '#00CC96', width: 2 }, marker: { size: 6 },
+      text: rows.map(r => r.iv.toFixed(1) + '%'),
+      textposition: 'top center', textfont: { size: 9, color: '#00CC96' },
+      yaxis: 'y2',
+      hovertemplate: 'IV: %{y:.1f}%<extra></extra>',
+    };
+
+    // POP line
+    const popTrace = {
+      x: strikes, y: rows.map(r => r.pop), name: 'POP %',
+      type: 'scatter', mode: 'lines+markers+text',
+      line: { color: '#AB63FA', width: 2, dash: 'dot' }, marker: { size: 6, symbol: 'diamond' },
+      text: rows.map(r => r.pop.toFixed(0) + '%'),
+      textposition: 'bottom center', textfont: { size: 9, color: '#AB63FA' },
+      yaxis: 'y3',
+      hovertemplate: 'POP: %{y:.1f}%<extra></extra>',
+    };
+
+    const typeLabel = activeType === 'puts' ? 'Sell Put' : 'Sell Call';
+    Plotly.newPlot(chartEl, [premiumTrace, ivTrace, popTrace], {
+      ...PLOTLY_LAYOUT_BASE, height: 480,
+      title: { text: `TSLA ${typeLabel} Matrix — ${exp.date} (${exp.dte}d) | Price: $${price}`, font: { size: 14, color: '#fff' }, x: 0.01 },
+      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Strike Price', tickangle: -45 },
+      yaxis: { title: 'Premium ($)', tickprefix: '$', side: 'left', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#EF553B' }, titlefont: { color: '#EF553B' } },
+      yaxis2: { title: 'IV %', overlaying: 'y', side: 'right', ticksuffix: '%', tickfont: { color: '#00CC96' }, titlefont: { color: '#00CC96' }, showgrid: false },
+      yaxis3: { title: 'POP %', overlaying: 'y', side: 'right', position: 0.95, ticksuffix: '%', tickfont: { color: '#AB63FA' }, titlefont: { color: '#AB63FA' }, showgrid: false, range: [0, 100] },
+      barmode: 'group',
+      legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.2 },
+    }, PLOTLY_CONFIG);
+
+    // ── Table ──
+    let tbl = `<table><thead><tr>
+      <th>Strike</th><th>OTM%</th><th>Bid</th><th>Ask</th><th>Spread</th>
+      <th>IV</th><th>Delta</th><th>Volume</th><th>OI</th>
+      <th>Ann. Return</th><th>POP</th><th>Rating</th>
+    </tr></thead><tbody>`;
+
+    rows.forEach(r => {
+      const isBest = r.annualized === bestAnn;
+      const bg = isBest ? 'background:rgba(245,197,66,0.12);' : '';
+      const star = isBest ? ' ★' : '';
+
+      // Rating: combine POP + annualized + spread quality
+      let rating = 0;
+      if (r.pop >= 70) rating += 3; else if (r.pop >= 60) rating += 2; else rating += 1;
+      if (r.annualized >= 30) rating += 3; else if (r.annualized >= 15) rating += 2; else rating += 1;
+      if (r.spread_pct < 5) rating += 2; else if (r.spread_pct < 10) rating += 1;
+      const stars = '★'.repeat(Math.min(rating, 5)) + '☆'.repeat(Math.max(0, 5 - rating));
+      const ratingColor = rating >= 7 ? '#00e676' : rating >= 5 ? '#f5c542' : '#ff5252';
+
+      tbl += `<tr style="${bg}">
+        <td><strong>$${r.strike}</strong>${star}</td>
+        <td>${r.otm_pct}%</td>
+        <td>$${r.bid.toFixed(2)}</td>
+        <td>$${r.ask.toFixed(2)}</td>
+        <td><span style="color:${r.spread_pct < 10 ? '#00e676' : '#ff5252'}">${r.spread_pct.toFixed(1)}% ${r.spread_quality}</span></td>
+        <td>${r.iv.toFixed(1)}%</td>
+        <td>${r.delta.toFixed(4)}</td>
+        <td>${r.volume.toLocaleString()}</td>
+        <td>${r.oi.toLocaleString()}</td>
+        <td><strong>${r.annualized.toFixed(1)}%</strong></td>
+        <td>${r.pop.toFixed(1)}%</td>
+        <td style="color:${ratingColor}">${stars}</td>
+      </tr>`;
+    });
+
+    tbl += '</tbody></table>';
+    tbl += `<p style="font-size:0.75em;color:#616161;margin-top:8px">★ = Best annualized return | Rating: POP + Ann.Return + Spread Quality | TSLA current price: $${price}</p>`;
+    tableEl.innerHTML = tbl;
+  }
+
+  buildTabs();
+  renderView();
+}
+
 // ── Grouped Trades with tab filters ──────────────────────
 function renderGroupedTrades(trades) {
   const cols = [
@@ -680,6 +820,12 @@ async function init() {
       <h2 class="section-title">Monthly Returns by Strategy</h2>
       <div class="chart-row" id="monthly-charts"></div>
 
+      <!-- TSLA Options Matrix -->
+      <h2 class="section-title">TSLA Options Matrix — Strike Comparison</h2>
+      <div id="tsla-matrix-tabs" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
+      <div id="tsla-matrix-chart" style="height:500px" class="chart-wrap"></div>
+      <div id="tsla-matrix-table" class="table-wrap" style="margin-top:12px"></div>
+
       <!-- Strike Comparison: same expiry, different strikes -->
       <h2 class="section-title">Strike Comparison — Best CP Value</h2>
       <div class="chart-wrap"><div id="chart-strike-compare" style="height:400px"></div></div>
@@ -699,7 +845,8 @@ async function init() {
     renderWinRateByStrategy(data.strategy_stats);
     renderWinRateByTicker(data.ticker_stats);
     renderMonthlyByStrategy(data.monthly_returns);
-    renderStrikeComparison(data);
+    renderTslaMatrix(data.tsla_matrix || {});
+    renderStrikeFromData(data.strike_comparison || []);
     renderGroupedTrades(data.recent_trades);
 
     // Render live prices from server-side data (in data.json)
