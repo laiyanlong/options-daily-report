@@ -603,13 +603,13 @@ def _fetch_strike_comparison(tickers: list[str] = None) -> list[dict]:
     return strikes
 
 
-def _fetch_tsla_options_matrix() -> dict:
-    """Fetch TSLA options chain and build a full matrix: same expiry, multiple strikes."""
+def _fetch_options_matrix(symbol: str = "TSLA") -> dict:
+    """Fetch options chain for a symbol and build a full matrix: same expiry, multiple strikes."""
     import math
     from scipy.stats import norm
 
     try:
-        tk = yf.Ticker("TSLA")
+        tk = yf.Ticker(symbol)
         info = tk.info
         price = info.get("currentPrice") or info.get("regularMarketPrice") or 0
         if not price:
@@ -788,7 +788,7 @@ def _fetch_tsla_options_matrix() -> dict:
 
         return result
     except Exception as e:
-        print(f"  Warning: TSLA matrix failed: {e}")
+        print(f"  Warning: {symbol} matrix failed: {e}")
         return {}
 
 
@@ -807,13 +807,22 @@ if __name__ == "__main__":
     data["strike_comparison"] = _fetch_strike_comparison()
     print(f"  {len(data['strike_comparison'])} strike entries")
 
-    # TSLA Options Matrix
-    print("\nFetching TSLA options matrix...")
-    data["tsla_matrix"] = _fetch_tsla_options_matrix()
-    if data["tsla_matrix"] and data["tsla_matrix"].get("expiries"):
-        total_puts = sum(len(e["puts"]) for e in data["tsla_matrix"]["expiries"])
-        total_calls = sum(len(e["calls"]) for e in data["tsla_matrix"]["expiries"])
-        print(f"  TSLA ${data['tsla_matrix']['price']}: {len(data['tsla_matrix']['expiries'])} expiries, {total_puts} puts, {total_calls} calls")
+    # Options Matrix for all tickers
+    print("\nFetching options matrices...")
+    options_matrices = {}
+    for sym in ["TSLA", "AMZN", "NVDA"]:
+        print(f"  Fetching {sym}...")
+        matrix = _fetch_options_matrix(sym)
+        if matrix and matrix.get("expiries"):
+            options_matrices[sym] = matrix
+            total_puts = sum(len(e["puts"]) for e in matrix["expiries"])
+            total_calls = sum(len(e["calls"]) for e in matrix["expiries"])
+            print(f"    ${matrix['price']}: {len(matrix['expiries'])} expiries, {total_puts} puts, {total_calls} calls")
+        else:
+            print(f"    No data")
+    data["options_matrices"] = options_matrices
+    # Keep tsla_matrix for backward compatibility
+    data["tsla_matrix"] = options_matrices.get("TSLA", {})
 
     output = Path(__file__).parent / "data.json"
     output.write_text(json.dumps(data, indent=2), encoding="utf-8")
