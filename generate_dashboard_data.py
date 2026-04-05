@@ -824,6 +824,24 @@ if __name__ == "__main__":
     # Keep tsla_matrix for backward compatibility
     data["tsla_matrix"] = options_matrices.get("TSLA", {})
 
+    # Timing recommendations
+    print("\nFetching timing recommendations...")
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from timing_strategy import get_timing_recommendation
+
+        timing = {}
+        for sym in ["TSLA", "AMZN", "NVDA"]:
+            t = get_timing_recommendation(sym)
+            if t:
+                timing[sym] = t
+                print(f"  {sym}: score={t['combined_score']}, action={t['action']}")
+        data["timing"] = timing
+    except Exception as e:
+        print(f"  Timing data skipped: {e}")
+        data["timing"] = {}
+
     output = Path(__file__).parent / "data.json"
     output.write_text(json.dumps(data, indent=2), encoding="utf-8")
     print(f"\nDashboard data written to {output}")
