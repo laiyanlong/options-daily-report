@@ -1160,6 +1160,21 @@ def main():
     except Exception as e:
         print(f"  Model verdict skipped: {e}")
 
+    # Optimal timing analysis
+    try:
+        from timing_strategy import generate_timing_section
+
+        print("\nGenerating timing analysis...")
+        timing_section = generate_timing_section(TICKERS)
+        if timing_section:
+            report_lines.append("")
+            report_lines.append("---")
+            report_lines.append("")
+            report_lines.append(timing_section)
+            print("  Timing analysis added.")
+    except Exception as e:
+        print(f"  Timing analysis skipped: {e}")
+
     # AI market commentary (optional, requires GEMINI_API_KEY)
     try:
         from ai_analysis import generate_ai_commentary
