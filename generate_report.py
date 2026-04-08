@@ -1175,6 +1175,21 @@ def main():
     except Exception as e:
         print(f"  Timing analysis skipped: {e}")
 
+    # OI distribution analysis
+    try:
+        from oi_distribution import generate_oi_section
+
+        print("\nGenerating OI distribution analysis...")
+        oi_section = generate_oi_section(TICKERS)
+        if oi_section:
+            report_lines.append("")
+            report_lines.append("---")
+            report_lines.append("")
+            report_lines.append(oi_section)
+            print("  OI distribution added.")
+    except Exception as e:
+        print(f"  OI distribution skipped: {e}")
+
     # AI market commentary (optional, requires GEMINI_API_KEY)
     try:
         from ai_analysis import generate_ai_commentary
