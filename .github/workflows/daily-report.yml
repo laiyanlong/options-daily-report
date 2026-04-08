@@ -3,7 +3,7 @@ name: Daily Options Report
 on:
   schedule:
     # 6:00 AM PT (America/Los_Angeles) = 1:00 PM UTC, weekdays only
-    - cron: '0 13 * * 1-5'
+    - cron: '40 13 * * 1-5'
   workflow_dispatch:
     inputs:
       report_date:
