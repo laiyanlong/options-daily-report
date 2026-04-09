@@ -4,6 +4,7 @@ Generates qualitative analysis to complement the quantitative options report.
 """
 
 import os
+import time
 from datetime import datetime
 
 import yfinance as yf
@@ -181,15 +182,23 @@ Notes:
 - 最後加上免責聲明"""
 
     print("  Calling Gemini API...")
-    try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
-        return response.text
-    except Exception as e:
-        return _fallback_message(f"Gemini API error: {e}")
+    client = genai.Client(api_key=api_key)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            return response.text
+        except Exception as e:
+            err_str = str(e)
+            if ("503" in err_str or "UNAVAILABLE" in err_str or "overloaded" in err_str.lower()) and attempt < max_retries - 1:
+                wait = 30 * (attempt + 1)
+                print(f"  Gemini 503 — retrying in {wait}s (attempt {attempt + 2}/{max_retries})...")
+                time.sleep(wait)
+            else:
+                return _fallback_message(f"Gemini API error: {e}")
 
 
 def _fallback_message(reason: str) -> str:
