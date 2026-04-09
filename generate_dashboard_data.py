@@ -842,6 +842,23 @@ if __name__ == "__main__":
         print(f"  Timing data skipped: {e}")
         data["timing"] = {}
 
+    # OI distribution
+    print("\nFetching OI distribution...")
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        from oi_distribution import analyze_oi_distribution
+
+        oi_data = {}
+        for sym in ["TSLA", "AMZN", "NVDA"]:
+            result = analyze_oi_distribution(sym)
+            if result:
+                oi_data[sym] = result
+                print(f"  {sym}: Put support ${result['key_levels']['max_put_oi_strike']}, Call resistance ${result['key_levels']['max_call_oi_strike']}")
+        data["oi_distribution"] = oi_data
+    except Exception as e:
+        print(f"  OI distribution skipped: {e}")
+
     output = Path(__file__).parent / "data.json"
     output.write_text(json.dumps(data, indent=2), encoding="utf-8")
     print(f"\nDashboard data written to {output}")
