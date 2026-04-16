@@ -1,0 +1,129 @@
+name: Weekly Options Summary
+
+on:
+  schedule:
+    # Sunday 18:00 UTC = Sunday 11:00 AM PT (America/Los_Angeles)
+    - cron: '0 18 * * 0'
+  workflow_dispatch:
+    inputs:
+      report_date:
+        description: 'Week-ending date (Saturday) YYYY-MM-DD. Leave empty for today.'
+        required: false
+        default: ''
+      tickers:
+        description: 'Comma-separated stock tickers (e.g. TSLA,AMZN,NVDA)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  generate-weekly-summary:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate weekly summary
+        env:
+          REPORT_DATE: ${{ github.event.inputs.report_date }}
+          TICKERS: ${{ github.event.inputs.tickers }}
+        run: |
+          DATE_ARG=""
+          if [ -n "$REPORT_DATE" ]; then
+            DATE_ARG="--date $REPORT_DATE"
+          fi
+          TICKERS_ARG=""
+          if [ -n "$TICKERS" ]; then
+            TICKERS_ARG="--tickers $TICKERS"
+          fi
+          python weekly_summary.py $DATE_ARG $TICKERS_ARG
+
+      - name: Get report info
+        id: report
+        run: |
+          DATE="${{ github.event.inputs.report_date }}"
+          if [ -z "$DATE" ]; then
+            DATE=$(date +%Y-%m-%d)
+          fi
+          REPORT_FILE="reports/weekly_summary_${DATE}.md"
+          if [ ! -f "$REPORT_FILE" ]; then
+            echo "Report file not found: $REPORT_FILE"
+            exit 1
+          fi
+          # Compute ISO week number
+          ISO_WEEK=$(date -d "$DATE" +%Y-W%V 2>/dev/null || date -j -f "%Y-%m-%d" "$DATE" +%Y-W%V 2>/dev/null || echo "")
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+          echo "file=$REPORT_FILE" >> $GITHUB_OUTPUT
+          echo "iso_week=$ISO_WEEK" >> $GITHUB_OUTPUT
+          echo "url=https://github.com/${{ github.repository }}/blob/main/$REPORT_FILE" >> $GITHUB_OUTPUT
+
+      - name: Commit and push report
+        run: |
+          git config user.name "Options Report Bot"
+          git config user.email "actions@github.com"
+          git add reports/ dashboard/
+          git commit -m "📊 Weekly options summary ${{ steps.report.outputs.date }}" || echo "Nothing to commit"
+          git pull --rebase origin main || true
+          git push origin main
+
+      - name: Build email body
+        run: |
+          REPORT_FILE="${{ steps.report.outputs.file }}"
+          REPORT_DATE="${{ steps.report.outputs.date }}"
+          REPORT_URL="${{ steps.report.outputs.url }}"
+          ISO_WEEK="${{ steps.report.outputs.iso_week }}"
+
+          # Build a compact HTML summary from the markdown
+          cat > /tmp/weekly_email.html << HTMLEOF
+          <html><body style="font-family: Arial, sans-serif; max-width: 700px; margin: auto;">
+          <h2>📊 選擇權週報 ${ISO_WEEK}</h2>
+          <p><strong>分析期間：</strong>${REPORT_DATE}</p>
+          <hr>
+          <h3>🔗 閱讀完整報告</h3>
+          <p><a href="${REPORT_URL}">👉 點此在 GitHub 上閱讀完整週報（含表格）</a></p>
+          <hr>
+          <h3>📋 週報摘要</h3>
+          <pre style="background:#f5f5f5; padding:12px; border-radius:4px; font-size:13px;">
+          HTMLEOF
+
+          # Extract key sections from markdown for email preview
+          if grep -q "本週總覽" "$REPORT_FILE"; then
+            sed -n '/本週總覽/,/---/p' "$REPORT_FILE" | head -30 >> /tmp/weekly_email.html
+          fi
+
+          # Append per-ticker outlook section
+          echo "" >> /tmp/weekly_email.html
+          echo "=== 下週展望 ===" >> /tmp/weekly_email.html
+          grep -A 3 "下週展望" "$REPORT_FILE" | head -40 >> /tmp/weekly_email.html
+
+          cat >> /tmp/weekly_email.html << 'HTMLEOF'
+          </pre>
+          <hr>
+          <p><em>此報告由 GitHub Actions 自動產生並寄送。選擇權交易具有高度風險，本報告僅供參考。</em></p>
+          </body></html>
+          HTMLEOF
+
+      - name: Send weekly summary email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: laiyanlong@gmail.com
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "📊 選擇權週報 ${{ steps.report.outputs.iso_week }}"
+          to: laiyanlong@gmail.com
+          from: "Options Report Bot <laiyanlong@gmail.com>"
+          html_body: file:///tmp/weekly_email.html
