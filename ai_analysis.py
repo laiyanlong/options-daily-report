@@ -183,22 +183,49 @@ Notes:
 
     print("  Calling Gemini API...")
     client = genai.Client(api_key=api_key)
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-            )
-            return response.text
-        except Exception as e:
-            err_str = str(e)
-            if ("503" in err_str or "UNAVAILABLE" in err_str or "overloaded" in err_str.lower()) and attempt < max_retries - 1:
-                wait = 30 * (attempt + 1)
-                print(f"  Gemini 503 — retrying in {wait}s (attempt {attempt + 2}/{max_retries})...")
-                time.sleep(wait)
-            else:
-                return _fallback_message(f"Gemini API error: {e}")
+
+    # Try models in order of preference; fall back to older models if newer
+    # is overloaded. Each model gets 2 retries with exponential backoff.
+    models = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+    ]
+
+    last_err: Exception | None = None
+    for model_name in models:
+        for attempt in range(2):
+            try:
+                print(f"  Trying model {model_name} (attempt {attempt + 1}/2)...")
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                print(f"  ✓ Success with {model_name}")
+                return response.text
+            except Exception as e:
+                last_err = e
+                err_str = str(e)
+                is_overload = (
+                    "503" in err_str
+                    or "UNAVAILABLE" in err_str
+                    or "overloaded" in err_str.lower()
+                    or "exhausted" in err_str.lower()
+                )
+                if is_overload and attempt < 1:
+                    wait = 20
+                    print(f"  {model_name} 503 — retrying in {wait}s...")
+                    time.sleep(wait)
+                elif is_overload:
+                    print(f"  {model_name} still overloaded, trying next model")
+                    break  # try next model
+                else:
+                    # Non-retriable error (e.g., auth, invalid key) — give up
+                    return _fallback_message(f"Gemini API error: {e}")
+
+    return _fallback_message(f"All Gemini models overloaded. Last error: {last_err}")
 
 
 def _fallback_message(reason: str) -> str:
