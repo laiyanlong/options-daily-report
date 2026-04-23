@@ -66,6 +66,29 @@ Updated every weekday ~13:25 UTC. Top-level keys:
 }
 ```
 
+## `dashboard/ai_commentary/YYYY-MM-DD.json` and `latest.json`
+
+Bilingual snapshot of the daily AI market commentary (zh + en).
+
+```jsonc
+{
+  "date": "YYYY-MM-DD",
+  "generated_at": "ISO 8601",
+  "tickers": ["TSLA", "AMZN", "NVDA"],
+  "zh": "…Gemini 繁體中文 markdown…",
+  "en": "…Gemini English markdown…"
+}
+```
+
+`latest.json` always points to the newest day's payload — a stable URL
+for consumers that don't want to enumerate.
+
+The `zh` / `en` fields may contain inline highlight markers of the form
+`[[type:text]]` where `type ∈ {pos, neg, key, warn, u}` and `text` is
+1–8 words. `pos/neg/key/warn` render as colored pills; `u` renders as
+an underline. Plain clients can strip with regex
+`\[\[(pos|neg|key|warn|u):([^\]\r\n]{1,80})\]\]`.
+
 ## `dashboard/weekly_summary.json`
 
 Updated every Sunday ~18:05 UTC. See any actual file in `dashboard/` for
