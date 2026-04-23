@@ -1,5 +1,7 @@
 # Options Daily Report — Data
 
+**Read in:** [English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md)
+
 Published output data for the **Options** mobile app.
 
 This repository contains only the **generated artifacts** of our options analysis
@@ -22,9 +24,9 @@ dashboard/
 
 | File | Cadence | Time (UTC) |
 |------|---------|------------|
-| `reports/YYYY-MM-DD.md` | Weekdays | 13:40 |
+| `reports/YYYY-MM-DD.md` | Weekdays | 13:20 |
 | `reports/weekly_summary_*.md` | Sundays | 18:00 |
-| `dashboard/*.json` | After each daily/weekly run | 13:45 / 18:05 |
+| `dashboard/*.json` | After each daily/weekly run | 13:25 / 18:05 |
 
 ## Licence
 

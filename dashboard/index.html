@@ -1,14 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="Live backtest dashboard for options selling strategies — daily reports, win-rate analysis, and strike comparisons.">
 <title>Options Strategy Live Backtest | DappGo</title>
 <script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
 <style>
   /* ── Reset & Base ─────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
+
+  /* Dark theme (default) */
+  :root,
+  [data-theme="dark"] {
     --bg-primary:   #1a1a2e;
     --bg-secondary: #16213e;
     --bg-card:      #1f2940;
@@ -23,6 +28,26 @@
     --border:       rgba(130,177,255,.12);
     --radius:       10px;
     --shadow:       0 4px 24px rgba(0,0,0,.35);
+    --focus-ring:   #82b1ff;
+  }
+
+  /* Light theme (WCAG AA compliant contrast) */
+  [data-theme="light"] {
+    --bg-primary:   #f7f8fc;
+    --bg-secondary: #ffffff;
+    --bg-card:      #ffffff;
+    --bg-card-alt:  #f1f3f9;
+    --gold:         #b8860b;  /* darker for contrast on light bg */
+    --blue:         #1e40af;
+    --green:        #057a41;  /* darker for WCAG AA */
+    --red:          #c53030;
+    --yellow:       #b7791f;
+    --text:         #1a1d2e;
+    --text-muted:   #52566e;  /* 4.7:1 on #ffffff */
+    --border:       rgba(30,64,175,.12);
+    --radius:       10px;
+    --shadow:       0 2px 12px rgba(30,30,50,.08);
+    --focus-ring:   #1e40af;
   }
   html { scroll-behavior: smooth; }
   body {
@@ -31,9 +56,92 @@
     color: var(--text);
     line-height: 1.6;
     min-height: 100vh;
+    transition: background-color .2s, color .2s;
   }
   a { color: var(--blue); text-decoration: none; }
   a:hover { text-decoration: underline; }
+
+  /* Respect reduced-motion preference */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      scroll-behavior: auto;
+    }
+  }
+
+  /* ── Accessibility: focus rings & skip link ───────────── */
+  :focus { outline: none; }
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 8px;
+    background: var(--gold);
+    color: #000;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-decoration: none;
+    z-index: 1000;
+    transition: top .15s;
+  }
+  .skip-link:focus { top: 8px; }
+  .visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap; border: 0;
+  }
+
+  /* ── Theme toggle button ──────────────────────────────── */
+  .theme-toggle {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: .85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .15s, transform .15s;
+    z-index: 10;
+  }
+  .theme-toggle:hover { transform: scale(1.05); }
+  .theme-toggle svg { width: 16px; height: 16px; }
+
+  /* ── Freshness badge ──────────────────────────────────── */
+  .freshness-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: .78rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .freshness-fresh { background: rgba(0,230,118,.15);  color: var(--green); }
+  .freshness-stale { background: rgba(255,215,64,.18); color: var(--yellow); }
+  .freshness-old   { background: rgba(255,82,82,.15);  color: var(--red); }
+  [data-theme="light"] .freshness-fresh { background: rgba(5,122,65,.12); }
+  [data-theme="light"] .freshness-stale { background: rgba(183,121,31,.14); }
+  [data-theme="light"] .freshness-old   { background: rgba(197,48,48,.12); }
+  .freshness-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+  }
 
   /* ── Layout ───────────────────────────────────────────── */
   .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
@@ -202,22 +310,64 @@
 
   /* ── Plotly overrides ─────────────────────────────────── */
   .js-plotly-plot .plotly .modebar { right: 8px !important; }
+
+  /* ── Mobile responsive ────────────────────────────────── */
+  @media (max-width: 768px) {
+    .container { padding: 0 16px; }
+    .header { padding: 28px 0 20px; }
+    .theme-toggle { top: 12px; right: 12px; padding: 6px 10px; font-size: .78rem; }
+    .theme-toggle span { display: none; }   /* icon-only on small screens */
+    .header-meta { gap: 12px; font-size: .78rem; }
+    .cards-row, .risk-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .card { padding: 16px 14px; }
+    .card .value { font-size: 1.45rem; }
+    .section-title { font-size: 1.02rem; margin: 26px 0 12px; }
+    .chart-row { grid-template-columns: 1fr; gap: 12px; }
+    .chart-wrap { padding: 14px 10px 4px; }
+    tbody td, thead th { padding: 8px 10px; font-size: .82rem; }
+    /* Horizontal scroll hint for tables */
+    .table-wrap::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 24px;
+      background: linear-gradient(90deg, transparent, var(--bg-card));
+      pointer-events: none;
+    }
+    .table-wrap { position: relative; }
+  }
+  @media (max-width: 480px) {
+    .cards-row, .risk-grid { grid-template-columns: 1fr; }
+    .header h1 { font-size: 1.5rem; }
+    .card .value { font-size: 1.3rem; }
+  }
 </style>
 </head>
 <body>
 
+<a class="skip-link" href="#app">Skip to main content</a>
+
 <!-- ═══════════════════ HEADER ═══════════════════ -->
-<header class="header">
+<header class="header" role="banner">
+  <button id="theme-toggle" class="theme-toggle" type="button"
+          aria-label="Toggle light / dark theme" title="Toggle theme">
+    <svg viewBox="0 0 24 24" aria-hidden="true" id="theme-icon">
+      <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" fill="currentColor"/>
+    </svg>
+    <span>Theme</span>
+  </button>
   <div class="container">
     <h1>Options Strategy <span class="accent">Live Backtest</span></h1>
     <p class="subtitle">Verified historical performance of automated trade recommendations</p>
-    <div class="header-meta">
-      <span id="last-updated">
-        <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/></svg>
-        Loading...
+    <div class="header-meta" role="group" aria-label="Status">
+      <span id="last-updated" aria-live="polite">
+        <span class="freshness-badge freshness-stale">
+          <span class="freshness-dot" aria-hidden="true"></span>
+          Loading&hellip;
+        </span>
       </span>
       <span>
-        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
         <a href="https://github.com/laiyanlong/options-daily-report" target="_blank" rel="noopener">View Repository</a>
       </span>
     </div>
@@ -225,10 +375,10 @@
 </header>
 
 <!-- ═══════════════════ MAIN ═══════════════════ -->
-<main class="container" id="app">
-  <div class="loading-overlay" id="loading">
-    <div class="spinner"></div>
-    <span>Loading dashboard data...</span>
+<main class="container" id="app" role="main" tabindex="-1">
+  <div class="loading-overlay" id="loading" aria-live="polite" aria-busy="true">
+    <div class="spinner" aria-hidden="true"></div>
+    <span>Loading dashboard data&hellip;</span>
   </div>
 </main>
 
@@ -243,17 +393,46 @@
 </footer>
 
 <script>
+// ── Theme (dark / light) ───────────────────────────
+(function initTheme() {
+  const saved = localStorage.getItem('theme');
+  const prefersLight = window.matchMedia?.('(prefers-color-scheme: light)').matches;
+  const theme = saved || (prefersLight ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+
+function getTheme() {
+  return document.documentElement.getAttribute('data-theme') || 'dark';
+}
+
+function plotlyColorForTheme() {
+  const isLight = getTheme() === 'light';
+  return {
+    text:       isLight ? '#1a1d2e' : '#e0e0e0',
+    gridColor:  isLight ? 'rgba(30,64,175,.08)' : 'rgba(130,177,255,.08)',
+    zeroline:   isLight ? 'rgba(30,64,175,.12)' : 'rgba(130,177,255,.12)',
+    hoverBg:    isLight ? '#ffffff' : '#1f2940',
+    hoverBorder:isLight ? '#1e40af' : '#82b1ff',
+  };
+}
+
 // ── Plotly shared layout defaults ──────────────────
-const PLOTLY_LAYOUT_BASE = {
-  paper_bgcolor: 'rgba(0,0,0,0)',
-  plot_bgcolor:  'rgba(0,0,0,0)',
-  font: { family: 'SF Pro Display, -apple-system, sans-serif', color: '#e0e0e0', size: 12 },
-  margin: { l: 56, r: 24, t: 36, b: 48 },
-  xaxis: { gridcolor: 'rgba(130,177,255,.08)', zerolinecolor: 'rgba(130,177,255,.12)' },
-  yaxis: { gridcolor: 'rgba(130,177,255,.08)', zerolinecolor: 'rgba(130,177,255,.12)' },
-  legend: { bgcolor: 'rgba(0,0,0,0)', font: { size: 11 } },
-  hoverlabel: { bgcolor: '#1f2940', bordercolor: '#82b1ff', font: { size: 12 } },
-};
+function buildPlotlyLayoutBase() {
+  const c = plotlyColorForTheme();
+  return {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor:  'rgba(0,0,0,0)',
+    font: { family: 'SF Pro Display, -apple-system, sans-serif', color: c.text, size: 12 },
+    margin: { l: 56, r: 24, t: 36, b: 48 },
+    xaxis: { gridcolor: c.gridColor, zerolinecolor: c.zeroline },
+    yaxis: { gridcolor: c.gridColor, zerolinecolor: c.zeroline },
+    legend: { bgcolor: 'rgba(0,0,0,0)', font: { size: 11 } },
+    hoverlabel: { bgcolor: c.hoverBg, bordercolor: c.hoverBorder, font: { size: 12 } },
+  };
+}
+
+// Mutable base re-read at render time (so light/dark takes effect on re-render)
+let PLOTLY_LAYOUT_BASE = buildPlotlyLayoutBase();
 
 const PLOTLY_CONFIG = {
   responsive: true,
@@ -755,10 +934,17 @@ function renderGroupedTrades(trades) {
     const filtered = getFiltered();
     wrap.innerHTML = buildTable(filtered);
     wrap.querySelectorAll('th').forEach(th => {
-      th.addEventListener('click', () => {
+      th.setAttribute('role', 'button');
+      th.setAttribute('tabindex', '0');
+      th.setAttribute('aria-sort', sortCol === th.dataset.col ? (sortAsc ? 'ascending' : 'descending') : 'none');
+      const handler = () => {
         const col = th.dataset.col;
         if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = true; }
         renderTable();
+      };
+      th.addEventListener('click', handler);
+      th.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
       });
     });
   }
@@ -790,10 +976,9 @@ async function init() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
     const data = await resp.json();
 
-    // Update header timestamp
-    document.getElementById('last-updated').innerHTML =
-      `<svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:#90a4ae"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/></svg>
-       Last updated: ${data.last_updated}`;
+    // Update header timestamp with freshness badge (auto-refresh every 30s)
+    renderFreshnessBadge(data.last_updated);
+    setInterval(() => renderFreshnessBadge(data.last_updated), 30000);
 
     // Build the dashboard DOM
     app.innerHTML = `
@@ -884,44 +1069,66 @@ function renderLivePrices(prices) {
   if (!container) return;
 
   if (!prices || !prices.length) {
-    container.innerHTML = '<p style="color:#90a4ae;font-size:0.9em">Price data updates when dashboard workflow runs. Trigger manually from GitHub Actions.</p>';
+    container.innerHTML = '<p style="color:var(--text-muted);font-size:0.9em">Price data updates when dashboard workflow runs. Trigger manually from GitHub Actions.</p>';
     if (status) status.textContent = 'Awaiting data';
     return;
   }
 
-  let html = '';
+  // Render as semantic list so screen readers announce "list of N prices"
+  let html = '<ul style="list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px" role="list">';
   prices.forEach(q => {
-    const changeColor = q.change >= 0 ? '#00e676' : '#ff5252';
-    const changeSign = q.change >= 0 ? '+' : '';
-    const arrow = q.change >= 0 ? '&#9650;' : '&#9660;';
+    const isUp = q.change >= 0;
+    const changeColor = isUp ? 'var(--green)' : 'var(--red)';
+    const changeSign = isUp ? '+' : '';
+    const arrow = isUp ? '&#9650;' : '&#9660;';
+    const arrowLabel = isUp ? 'up' : 'down';
     const state = q.market_state === 'REGULAR' ? 'LIVE' : q.market_state || '';
 
-    // Mini sparkline from intraday data
+    // Mini sparkline from intraday data — thicker stroke, gradient fill, tooltip
     let sparkHtml = '';
     if (q.intraday_prices && q.intraday_prices.length > 2) {
       const min = Math.min(...q.intraday_prices);
       const max = Math.max(...q.intraday_prices);
       const range = max - min || 1;
-      const h = 30;
-      const w = 120;
+      const h = 36;
+      const w = 140;
       const step = w / (q.intraday_prices.length - 1);
       const points = q.intraday_prices.map((p, i) => `${i * step},${h - ((p - min) / range) * h}`).join(' ');
-      sparkHtml = `<svg width="${w}" height="${h}" style="margin-top:6px"><polyline points="${points}" fill="none" stroke="${changeColor}" stroke-width="1.5" opacity="0.8"/></svg>`;
+      const areaPoints = `0,${h} ${points} ${w},${h}`;
+      const sparkId = `spark-grad-${q.symbol}`;
+      sparkHtml = `
+        <svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"
+             style="margin-top:8px;display:block" role="img"
+             aria-label="${q.symbol} intraday trend, ${arrowLabel} ${Math.abs(q.change_pct).toFixed(2)}%">
+          <defs>
+            <linearGradient id="${sparkId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stop-color="${isUp ? '#00e676' : '#ff5252'}" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="${isUp ? '#00e676' : '#ff5252'}" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <polygon points="${areaPoints}" fill="url(#${sparkId})"/>
+          <polyline points="${points}" fill="none" stroke="${isUp ? '#00e676' : '#ff5252'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
     }
 
+    const ariaLabel = `${q.symbol} $${q.price.toFixed(2)}, ${arrowLabel} ${Math.abs(q.change_pct).toFixed(2)} percent`;
     html += `
-      <div class="card" style="min-width:200px">
-        <div class="card-label">${q.symbol} <span style="font-size:0.7em;color:#90a4ae">${state}</span></div>
-        <div class="card-value">$${q.price.toFixed(2)}</div>
-        <div class="card-sub" style="color:${changeColor}">
-          ${arrow} ${changeSign}${q.change.toFixed(2)} (${changeSign}${q.change_pct.toFixed(2)}%)
+      <li class="card" style="min-width:200px" role="listitem" aria-label="${ariaLabel}">
+        <div class="card-label" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:4px">
+          <strong style="color:var(--text);letter-spacing:0">${q.symbol}</strong>
+          ${state ? `<span style="font-size:.65rem;margin-left:6px">${state}</span>` : ''}
         </div>
-        <div class="card-sub" style="font-size:0.7em;color:#90a4ae;margin-top:4px">
-          H: $${q.high.toFixed(2)} | L: $${q.low.toFixed(2)} | V: ${formatVol(q.volume)}
+        <div class="card-value" style="font-size:1.4rem;font-weight:700;line-height:1.2">$${q.price.toFixed(2)}</div>
+        <div class="card-sub" style="color:${changeColor};font-weight:600;font-size:.85rem;margin-top:2px">
+          <span aria-hidden="true">${arrow}</span> ${changeSign}${q.change.toFixed(2)} (${changeSign}${q.change_pct.toFixed(2)}%)
+        </div>
+        <div class="card-sub" style="font-size:.7em;color:var(--text-muted);margin-top:4px">
+          H: $${q.high.toFixed(2)} &middot; L: $${q.low.toFixed(2)} &middot; V: ${formatVol(q.volume)}
         </div>
         ${sparkHtml}
-      </div>`;
+      </li>`;
   });
+  html += '</ul>';
 
   container.innerHTML = html;
   if (status) status.textContent = 'From last workflow run';
@@ -985,7 +1192,69 @@ function formatVol(v) {
   return v.toString();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// ── Freshness badge (WCAG-friendly) ──────────────
+function renderFreshnessBadge(isoTimestamp) {
+  const el = document.getElementById('last-updated');
+  if (!el) return;
+  let cls, label;
+  if (!isoTimestamp) {
+    cls = 'freshness-old';
+    label = 'No data';
+  } else {
+    const ts = new Date(isoTimestamp);
+    const ageMs = Date.now() - ts.getTime();
+    const ageHours = ageMs / 3600000;
+    if (ageHours < 2)       { cls = 'freshness-fresh'; label = `Updated ${formatAgo(ageMs)} ago`; }
+    else if (ageHours < 24) { cls = 'freshness-stale'; label = `Updated ${formatAgo(ageMs)} ago`; }
+    else                    { cls = 'freshness-old';   label = `Stale — ${formatAgo(ageMs)} ago`; }
+  }
+  el.innerHTML = `
+    <span class="freshness-badge ${cls}">
+      <span class="freshness-dot" aria-hidden="true"></span>
+      <span>${label}</span>
+    </span>`;
+}
+
+function formatAgo(ms) {
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h`;
+  const days = Math.floor(hr / 24);
+  return `${days}d`;
+}
+
+// ── Theme toggle handler ─────────────────────────
+function setupThemeToggle() {
+  const btn = document.getElementById('theme-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const next = getTheme() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+
+    // Re-render all Plotly charts with new colors
+    PLOTLY_LAYOUT_BASE = buildPlotlyLayoutBase();
+    const c = plotlyColorForTheme();
+    document.querySelectorAll('.js-plotly-plot').forEach(el => {
+      Plotly.relayout(el, {
+        'font.color':             c.text,
+        'xaxis.gridcolor':        c.gridColor,
+        'xaxis.zerolinecolor':    c.zeroline,
+        'yaxis.gridcolor':        c.gridColor,
+        'yaxis.zerolinecolor':    c.zeroline,
+        'hoverlabel.bgcolor':     c.hoverBg,
+        'hoverlabel.bordercolor': c.hoverBorder,
+      }).catch(() => { /* chart not fully rendered yet */ });
+    });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupThemeToggle();
+  init();
+});
 </script>
 </body>
 </html>

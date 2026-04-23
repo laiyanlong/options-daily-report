@@ -1,0 +1,286 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/laiyanlong/options-daily-report/main/schemas/data.schema.json",
+  "title": "Options Daily Report — Dashboard Data",
+  "description": "Aggregate dashboard payload consumed by the mobile app and web viewer. Regenerated after each daily-report run.",
+  "type": "object",
+  "required": ["last_updated", "summary", "live_prices", "ticker_stats", "options_matrices", "timing", "oi_distribution"],
+  "additionalProperties": true,
+
+  "properties": {
+    "last_updated": {
+      "type": "string",
+      "description": "ISO 8601 date or datetime of the most recent report generation.",
+      "examples": ["2026-04-22", "2026-04-22T13:25:00Z"]
+    },
+
+    "summary": {
+      "type": "object",
+      "description": "Global aggregate statistics across all historical trades.",
+      "required": ["total_trades", "win_rate"],
+      "properties": {
+        "total_trades":   { "type": "integer", "minimum": 0 },
+        "wins":           { "type": "integer", "minimum": 0 },
+        "losses":         { "type": "integer", "minimum": 0 },
+        "win_rate":       { "type": "number", "minimum": 0, "maximum": 100 },
+        "avg_return":     { "type": "number" },
+        "avg_return_pct": { "type": "number" },
+        "profit_factor":  { "type": "number", "minimum": 0 },
+        "max_drawdown":     { "type": "number" },
+        "max_drawdown_pct": { "type": "number" },
+        "sharpe_ratio":   { "type": "number" },
+        "sortino_ratio":  { "type": "number" },
+        "total_pnl":      { "type": "number" },
+        "avg_win":        { "type": "number" },
+        "avg_loss":       { "type": "number" }
+      }
+    },
+
+    "cumulative_pnl": {
+      "type": "object",
+      "description": "Time-series cumulative P&L per strategy.",
+      "properties": {
+        "dates":       { "type": "array", "items": { "type": "string", "format": "date" } },
+        "sell_put":    { "type": "array", "items": { "type": "number" } },
+        "sell_call":   { "type": "array", "items": { "type": "number" } },
+        "iron_condor": { "type": "array", "items": { "type": "number" } }
+      }
+    },
+
+    "monthly_returns": {
+      "type": "object",
+      "properties": {
+        "months":      { "type": "array", "items": { "type": "string", "pattern": "^\\d{4}-\\d{2}$" } },
+        "sell_put":    { "type": "array", "items": { "type": "number" } },
+        "sell_call":   { "type": "array", "items": { "type": "number" } },
+        "iron_condor": { "type": "array", "items": { "type": "number" } }
+      }
+    },
+
+    "ticker_stats": {
+      "type": "object",
+      "description": "Per-ticker aggregate statistics. Keys are ticker symbols (e.g. TSLA).",
+      "patternProperties": {
+        "^[A-Z]{1,5}$": {
+          "type": "object",
+          "required": ["trades", "win_rate"],
+          "properties": {
+            "trades":     { "type": "integer", "minimum": 0 },
+            "wins":       { "type": "integer", "minimum": 0 },
+            "losses":     { "type": "integer", "minimum": 0 },
+            "win_rate":   { "type": "number", "minimum": 0, "maximum": 100 },
+            "total_pnl":  { "type": "number" },
+            "avg_return": { "type": "number" }
+          }
+        }
+      }
+    },
+
+    "strategy_stats": {
+      "type": "object",
+      "patternProperties": {
+        "^(sell_put|sell_call|iron_condor)$": {
+          "type": "object",
+          "properties": {
+            "trades":     { "type": "integer" },
+            "wins":       { "type": "integer" },
+            "losses":     { "type": "integer" },
+            "win_rate":   { "type": "number" },
+            "total_pnl":  { "type": "number" },
+            "avg_return": { "type": "number" }
+          }
+        }
+      }
+    },
+
+    "recent_trades": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date", "symbol", "strategy", "strike", "premium", "result"],
+        "properties": {
+          "date":     { "type": "string", "format": "date" },
+          "symbol":   { "type": "string" },
+          "strategy": { "type": "string" },
+          "strike":   { "type": "number" },
+          "premium":  { "type": "number" },
+          "expiry":   { "type": "string" },
+          "result":   { "type": "string", "enum": ["win", "loss"] },
+          "pnl":      { "type": "number" }
+        }
+      }
+    },
+
+    "live_prices": {
+      "type": "array",
+      "description": "Current snapshot of configured tickers — consumed by the mobile app's price cards.",
+      "items": {
+        "type": "object",
+        "required": ["symbol", "price"],
+        "properties": {
+          "symbol":     { "type": "string" },
+          "price":      { "type": "number" },
+          "change":     { "type": "number" },
+          "change_pct": { "type": "number" },
+          "high":       { "type": "number" },
+          "low":        { "type": "number" },
+          "volume":     { "type": "integer", "minimum": 0 },
+          "market_state": {
+            "type": "string",
+            "enum": ["REGULAR", "PRE", "POST", "OPEN", "CLOSED", "PREPRE", "POSTPOST"]
+          },
+          "intraday_prices": {
+            "type": "array",
+            "description": "Intraday price series (30-min candles for the current session).",
+            "items": { "type": "number" }
+          }
+        }
+      }
+    },
+
+    "strike_comparison": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "symbol":     { "type": "string" },
+          "strike":     { "type": "number" },
+          "premium":    { "type": "number" },
+          "otm_pct":    { "type": "number" },
+          "dte":        { "type": "integer" },
+          "annualized": { "type": "number" }
+        }
+      }
+    },
+
+    "options_matrices": {
+      "type": "object",
+      "description": "Per-ticker options chain summary with multiple expiries.",
+      "patternProperties": {
+        "^[A-Z]{1,5}$": {
+          "type": "object",
+          "required": ["expiries"],
+          "properties": {
+            "price": { "type": "number" },
+            "expiries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["date"],
+                "properties": {
+                  "date":  { "type": "string", "format": "date" },
+                  "dte":   { "type": "integer" },
+                  "puts":  { "type": "array", "items": { "$ref": "#/$defs/optionRow" } },
+                  "calls": { "type": "array", "items": { "$ref": "#/$defs/optionRow" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "tsla_matrix": {
+      "type": "object",
+      "description": "DEPRECATED — use options_matrices.TSLA instead.",
+      "deprecated": true
+    },
+
+    "timing": {
+      "type": "object",
+      "description": "Per-ticker timing signal (SELL_NOW / WAIT / AVOID).",
+      "patternProperties": {
+        "^[A-Z]{1,5}$": {
+          "type": "object",
+          "required": ["action", "combined_score"],
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": ["SELL_NOW", "WAIT", "AVOID", "NEUTRAL"]
+            },
+            "combined_score": { "type": "number", "minimum": 0, "maximum": 100 },
+            "overall_recommendation": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "oi_distribution": {
+      "type": "object",
+      "description": "Per-ticker open-interest concentration analysis.",
+      "patternProperties": {
+        "^[A-Z]{1,5}$": {
+          "type": "object",
+          "required": ["price", "key_levels"],
+          "properties": {
+            "symbol":  { "type": "string" },
+            "price":   { "type": "number" },
+            "expiries_analyzed": { "type": "integer" },
+            "total_call_oi": { "type": "integer" },
+            "total_put_oi":  { "type": "integer" },
+            "pc_oi_ratio":   { "type": "number" },
+            "put_concentration":  { "type": "array", "items": { "$ref": "#/$defs/oiEntry" } },
+            "call_concentration": { "type": "array", "items": { "$ref": "#/$defs/oiEntry" } },
+            "oi_by_strike": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["strike", "call_oi", "put_oi"],
+                "properties": {
+                  "strike":  { "type": "number" },
+                  "call_oi": { "type": "integer", "minimum": 0 },
+                  "put_oi":  { "type": "integer", "minimum": 0 },
+                  "net_oi":  { "type": "integer" }
+                }
+              }
+            },
+            "volume_hotspots": { "type": "array" },
+            "key_levels": {
+              "type": "object",
+              "properties": {
+                "max_call_oi_strike":    { "type": "number" },
+                "max_put_oi_strike":     { "type": "number" },
+                "max_pain":              { "type": "number" },
+                "highest_volume_strike": { "type": "number" }
+              }
+            },
+            "interpretation": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "optionRow": {
+      "type": "object",
+      "required": ["strike", "bid"],
+      "properties": {
+        "strike":       { "type": "number" },
+        "otm_pct":      { "type": "number" },
+        "bid":          { "type": "number" },
+        "ask":          { "type": "number" },
+        "spread_pct":   { "type": "number" },
+        "spread_quality": { "type": "string" },
+        "delta":        { "type": "number" },
+        "iv":           { "type": "number" },
+        "volume":       { "type": "integer", "minimum": 0 },
+        "oi":           { "type": "integer", "minimum": 0 },
+        "pop":          { "type": "number", "minimum": 0, "maximum": 100 },
+        "annualized":   { "type": "number" },
+        "cp_score":     { "type": "number" }
+      }
+    },
+    "oiEntry": {
+      "type": "object",
+      "required": ["strike", "oi"],
+      "properties": {
+        "strike":       { "type": "number" },
+        "oi":           { "type": "integer", "minimum": 0 },
+        "volume":       { "type": "integer", "minimum": 0 },
+        "iv":           { "type": "number" },
+        "distance_pct": { "type": "number" }
+      }
+    }
+  }
+}

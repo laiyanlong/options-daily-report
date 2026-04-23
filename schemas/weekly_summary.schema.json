@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/laiyanlong/options-daily-report/main/schemas/weekly_summary.schema.json",
+  "title": "Options Daily Report — Weekly Summary",
+  "description": "Aggregate weekly performance + next-week outlook. Regenerated every Sunday.",
+  "type": "object",
+  "required": ["week_ending", "tickers"],
+  "additionalProperties": true,
+
+  "properties": {
+    "week_ending": { "type": "string", "format": "date", "description": "Sunday of the week (inclusive)." },
+    "week_start":  { "type": "string", "format": "date" },
+    "week_end":    { "type": "string", "format": "date" },
+    "iso_week":    { "type": "string", "pattern": "^\\d{4}-W\\d{2}$", "examples": ["2026-W16"] },
+
+    "overall_score":    { "type": "number", "minimum": 0, "maximum": 100 },
+    "overall_accuracy": { "type": "number", "minimum": 0, "maximum": 100 },
+
+    "tickers": {
+      "type": "object",
+      "description": "Keys are ticker symbols.",
+      "patternProperties": {
+        "^[A-Z]{1,5}$": {
+          "type": "object",
+          "required": ["next_week_outlook"],
+          "properties": {
+            "price_start":     { "type": ["number", "null"] },
+            "price_end":       { "type": ["number", "null"] },
+            "price_change_pct":{ "type": ["number", "null"] },
+
+            "iv_avg":          { "type": ["number", "null"] },
+            "iv_min":          { "type": ["number", "null"] },
+            "iv_max":          { "type": ["number", "null"] },
+            "iv_trend": {
+              "type": "string",
+              "enum": ["rising", "falling", "stable", "unknown"]
+            },
+
+            "pc_ratio_avg": { "type": ["number", "null"] },
+
+            "recommendations_count": { "type": "integer", "minimum": 0 },
+            "sell_put_count":        { "type": "integer", "minimum": 0 },
+            "sell_call_count":       { "type": "integer", "minimum": 0 },
+
+            "best_trade": {
+              "oneOf": [
+                { "type": "null" },
+                {
+                  "type": "object",
+                  "properties": {
+                    "strategy":   { "type": "string" },
+                    "strike":     { "type": "number" },
+                    "cp_score":   { "type": "number" },
+                    "annualized": { "type": "string" },
+                    "expiry":     { "type": "string", "format": "date" }
+                  }
+                }
+              ]
+            },
+
+            "accuracy": {
+              "type": "object",
+              "properties": {
+                "total":      { "type": "integer", "minimum": 0 },
+                "profitable": { "type": "integer", "minimum": 0 },
+                "score":      { "type": "number", "minimum": 0, "maximum": 100 }
+              }
+            },
+
+            "next_week_outlook": {
+              "type": "object",
+              "required": ["direction", "confidence"],
+              "properties": {
+                "direction": {
+                  "type": "string",
+                  "enum": ["bullish", "bearish", "neutral"]
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 10,
+                  "description": "Analyst confidence 1–10."
+                },
+                "reasoning": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
