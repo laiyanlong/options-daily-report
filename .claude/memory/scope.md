@@ -4,7 +4,7 @@
 
 | Path | Purpose |
 |---|---|
-| `README.md` / `README.zh-TW.md` / `README.zh-CN.md` | Public documentation (with language switcher) |
+| `README.md` / `README.zh-TW.md` | Public documentation (with language switcher) |
 | `LICENSE` | CC BY-NC 4.0 for data + proprietary note for source |
 | `dashboard/index.html` | Static web viewer (served by GitHub Pages) |
 | `schemas/*.schema.json` | JSON Schema definitions for data.json / weekly_summary.json |

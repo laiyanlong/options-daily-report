@@ -4,1257 +4,410 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="dark light">
-<meta name="description" content="Live backtest dashboard for options selling strategies — daily reports, win-rate analysis, and strike comparisons.">
-<title>Options Strategy Live Backtest | DappGo</title>
-<script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+<meta name="description" content="Options Daily Report — date-indexed backtest reports and AI commentary (TSLA / AMZN / NVDA).">
+<title>Options Daily Report | DappGo</title>
+<link rel="alternate" type="application/rss+xml" href="../feed.xml" title="Options Daily Report">
+<link rel="alternate" type="application/feed+json" href="../feed.json" title="Options Daily Report (JSON Feed)">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#10b981">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://dappgo.com/#org",
+      "name": "DappGo",
+      "url": "https://dappgo.com",
+      "logo": "https://laiyanlong.github.io/options-daily-report/dashboard/icons/icon-512.png"
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://laiyanlong.github.io/options-daily-report/#website",
+      "url": "https://laiyanlong.github.io/options-daily-report/",
+      "name": "Options Daily Report",
+      "description": "Daily options strategy reports (TSLA / AMZN / NVDA) with AI commentary.",
+      "inLanguage": "en",
+      "publisher": { "@id": "https://dappgo.com/#org" }
+    }
+  ]
+}
+</script>
+<script
+  src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"
+  integrity="sha384-/TQbtLCAerC3jgaim+N78RZSDYV7ryeoBCVqTuzRrFec2akfBkHS7ACQ3PQhvMVi"
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"></script>
 <style>
-  /* ── Reset & Base ─────────────────────────────────────── */
+  /* ── Base ── DappGo dark + emerald accent ───────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  /* Dark theme (default) */
-  :root,
-  [data-theme="dark"] {
-    --bg-primary:   #1a1a2e;
-    --bg-secondary: #16213e;
-    --bg-card:      #1f2940;
-    --bg-card-alt:  #243050;
-    --gold:         #f5c542;
-    --blue:         #82b1ff;
-    --green:        #00e676;
-    --red:          #ff5252;
-    --yellow:       #ffd740;
-    --text:         #e0e0e0;
-    --text-muted:   #90a4ae;
-    --border:       rgba(130,177,255,.12);
-    --radius:       10px;
-    --shadow:       0 4px 24px rgba(0,0,0,.35);
-    --focus-ring:   #82b1ff;
-  }
-
-  /* Light theme (WCAG AA compliant contrast) */
-  [data-theme="light"] {
-    --bg-primary:   #f7f8fc;
-    --bg-secondary: #ffffff;
-    --bg-card:      #ffffff;
-    --bg-card-alt:  #f1f3f9;
-    --gold:         #b8860b;  /* darker for contrast on light bg */
-    --blue:         #1e40af;
-    --green:        #057a41;  /* darker for WCAG AA */
-    --red:          #c53030;
-    --yellow:       #b7791f;
-    --text:         #1a1d2e;
-    --text-muted:   #52566e;  /* 4.7:1 on #ffffff */
-    --border:       rgba(30,64,175,.12);
-    --radius:       10px;
-    --shadow:       0 2px 12px rgba(30,30,50,.08);
-    --focus-ring:   #1e40af;
+  :root {
+    --bg:        #0f172a;
+    --bg-card:   #1e293b;
+    --bg-input:  #0b1220;
+    --border:    rgba(16,185,129,.18);
+    --accent:    #10b981;
+    --accent-dim:rgba(16,185,129,.12);
+    --text:      #e2e8f0;
+    --text-mute: #94a3b8;
+    --pos:       #10b981;
+    --neg:       #ef4444;
+    --gold:      #f59e0b;
+    --radius:    10px;
   }
   html { scroll-behavior: smooth; }
   body {
-    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg-primary);
-    color: var(--text);
-    line-height: 1.6;
-    min-height: 100vh;
-    transition: background-color .2s, color .2s;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.65;
+    min-height: 100vh; padding: 24px 16px 48px;
   }
-  a { color: var(--blue); text-decoration: none; }
+  a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
-
-  /* Respect reduced-motion preference */
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      transition-duration: 0.01ms !important;
-      animation-duration: 0.01ms !important;
-      scroll-behavior: auto;
-    }
-  }
-
-  /* ── Accessibility: focus rings & skip link ───────────── */
-  :focus { outline: none; }
-  :focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-    border-radius: 4px;
-  }
-  .skip-link {
-    position: absolute;
-    top: -40px;
-    left: 8px;
-    background: var(--gold);
-    color: #000;
-    padding: 8px 16px;
-    border-radius: 4px;
-    font-weight: 600;
-    text-decoration: none;
-    z-index: 1000;
-    transition: top .15s;
-  }
-  .skip-link:focus { top: 8px; }
-  .visually-hidden {
-    position: absolute;
-    width: 1px; height: 1px;
-    padding: 0; margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap; border: 0;
-  }
-
-  /* ── Theme toggle button ──────────────────────────────── */
-  .theme-toggle {
-    position: absolute;
-    top: 16px; right: 16px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 8px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: .85rem;
-    display: inline-flex;
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); font-weight: 700; letter-spacing: -.02em; }
+  header h1 .accent { color: var(--accent); }
+  header .sub { color: var(--text-mute); margin-top: 6px; font-size: .92rem; }
+  /* ── Controls ───────────────────────────────────────── */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px;
     align-items: center;
-    gap: 6px;
-    transition: background .15s, transform .15s;
-    z-index: 10;
   }
-  .theme-toggle:hover { transform: scale(1.05); }
-  .theme-toggle svg { width: 16px; height: 16px; }
-
-  /* ── Freshness badge ──────────────────────────────────── */
-  .freshness-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: .78rem;
-    font-weight: 600;
-    line-height: 1.2;
+  .controls label { font-size: .82rem; color: var(--text-mute); margin-right: 4px; }
+  .controls select, .controls button {
+    background: var(--bg-input); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 10px; font-size: .9rem; font-family: inherit; cursor: pointer;
   }
-  .freshness-fresh { background: rgba(0,230,118,.15);  color: var(--green); }
-  .freshness-stale { background: rgba(255,215,64,.18); color: var(--yellow); }
-  .freshness-old   { background: rgba(255,82,82,.15);  color: var(--red); }
-  [data-theme="light"] .freshness-fresh { background: rgba(5,122,65,.12); }
-  [data-theme="light"] .freshness-stale { background: rgba(183,121,31,.14); }
-  [data-theme="light"] .freshness-old   { background: rgba(197,48,48,.12); }
-  .freshness-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: currentColor;
-    display: inline-block;
+  .controls select:focus, .controls button:focus {
+    outline: 2px solid var(--accent); outline-offset: 1px;
   }
-
-  /* ── Layout ───────────────────────────────────────────── */
-  .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
-
-  /* ── Header ───────────────────────────────────────────── */
-  .header {
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, #0f3460 100%);
-    border-bottom: 1px solid var(--border);
-    padding: 40px 0 32px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
+  .controls button.active { background: var(--accent); color: #0b1220; font-weight: 600; border-color: var(--accent); }
+  .lang-group { margin-left: auto; display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .lang-group button { border: 0; border-radius: 0; padding: 7px 14px; }
+  .lang-group button:not(.active) { background: transparent; color: var(--text-mute); }
+  /* ── Content panels ─────────────────────────────────── */
+  .panel {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px 24px; margin-bottom: 20px;
   }
-  .header::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(ellipse at 50% 0%, rgba(245,197,66,.06) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .header h1 {
-    font-size: clamp(1.8rem, 4vw, 2.6rem);
-    font-weight: 700;
-    letter-spacing: -.02em;
-    color: #fff;
-    margin-bottom: 6px;
-  }
-  .header h1 .accent { color: var(--gold); }
-  .header .subtitle {
-    font-size: clamp(.85rem, 1.6vw, 1.05rem);
-    color: var(--text-muted);
-    margin-bottom: 14px;
-  }
-  .header-meta {
-    display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;
-    font-size: .85rem; color: var(--text-muted);
-  }
-  .header-meta span { display: inline-flex; align-items: center; gap: 6px; }
-  .header-meta svg { width: 14px; height: 14px; fill: var(--text-muted); }
-
-  /* ── Section titles ───────────────────────────────────── */
-  .section-title {
-    font-size: 1.15rem; font-weight: 600; color: #fff;
-    margin: 36px 0 16px; padding-left: 14px;
-    border-left: 3px solid var(--gold);
-  }
-
-  /* ── Summary Cards ────────────────────────────────────── */
-  .cards-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
-    margin-top: 28px;
-  }
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 22px 20px;
-    box-shadow: var(--shadow);
-    transition: transform .18s, box-shadow .18s;
-  }
-  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.45); }
-  .card .label { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: 6px; }
-  .card .value { font-size: 1.9rem; font-weight: 700; line-height: 1.2; }
-  .card .trend { font-size: .78rem; margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; }
-  .positive { color: var(--green); }
-  .negative { color: var(--red); }
-  .neutral  { color: var(--text-muted); }
-
-  /* ── Chart containers ─────────────────────────────────── */
-  .chart-wrap {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 20px 16px 8px;
-    margin-bottom: 20px;
-  }
-  .chart-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 20px;
-  }
-  @media (max-width: 500px) {
-    .chart-row { grid-template-columns: 1fr; }
-  }
-
-  /* ── Table ────────────────────────────────────────────── */
-  .table-wrap {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow-x: auto;
-    margin-bottom: 20px;
-  }
-  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-  thead th {
-    position: sticky; top: 0;
-    background: var(--bg-card-alt);
-    color: var(--text-muted);
-    font-weight: 600; font-size: .76rem;
-    text-transform: uppercase; letter-spacing: .06em;
-    padding: 12px 14px; text-align: left;
-    border-bottom: 1px solid var(--border);
-    cursor: pointer; user-select: none;
-    white-space: nowrap;
-  }
-  thead th:hover { color: var(--gold); }
-  thead th .sort-arrow { margin-left: 4px; font-size: .7rem; }
-  tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
-  tbody tr:hover { background: rgba(130,177,255,.05); }
-  tbody td { padding: 10px 14px; white-space: nowrap; }
-  .result-win  { color: var(--green); font-weight: 600; }
-  .result-loss { color: var(--red); font-weight: 600; }
-  .pnl-pos { color: var(--green); }
-  .pnl-neg { color: var(--red); }
-  .row-win  { border-left: 3px solid var(--green); }
-  .row-loss { border-left: 3px solid var(--red); }
-
-  /* ── Risk Metrics ─────────────────────────────────────── */
-  .risk-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-  }
-  .risk-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    text-align: center;
-    box-shadow: var(--shadow);
-  }
-  .risk-card .risk-value { font-size: 1.6rem; font-weight: 700; margin: 8px 0 4px; }
-  .risk-card .risk-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
-
-  /* ── Footer ───────────────────────────────────────────── */
-  .footer {
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border);
-    padding: 32px 0;
-    margin-top: 48px;
-    text-align: center;
-    font-size: .82rem;
-    color: var(--text-muted);
-  }
-  .footer p { margin-bottom: 8px; }
-  .footer .brand { color: var(--gold); font-weight: 600; }
-  .footer .disclaimer { font-style: italic; font-size: .75rem; margin-top: 12px; opacity: .7; }
-
-  /* ── Loading / Error ──────────────────────────────────── */
-  .loading-overlay {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 60vh; gap: 16px;
-  }
-  .spinner {
-    width: 40px; height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--gold);
-    border-radius: 50%;
-    animation: spin .8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .error-msg { color: var(--red); text-align: center; padding: 40px; font-size: 1.1rem; }
-
-  /* ── Plotly overrides ─────────────────────────────────── */
-  .js-plotly-plot .plotly .modebar { right: 8px !important; }
-
-  /* ── Mobile responsive ────────────────────────────────── */
-  @media (max-width: 768px) {
-    .container { padding: 0 16px; }
-    .header { padding: 28px 0 20px; }
-    .theme-toggle { top: 12px; right: 12px; padding: 6px 10px; font-size: .78rem; }
-    .theme-toggle span { display: none; }   /* icon-only on small screens */
-    .header-meta { gap: 12px; font-size: .78rem; }
-    .cards-row, .risk-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-    .card { padding: 16px 14px; }
-    .card .value { font-size: 1.45rem; }
-    .section-title { font-size: 1.02rem; margin: 26px 0 12px; }
-    .chart-row { grid-template-columns: 1fr; gap: 12px; }
-    .chart-wrap { padding: 14px 10px 4px; }
-    tbody td, thead th { padding: 8px 10px; font-size: .82rem; }
-    /* Horizontal scroll hint for tables */
-    .table-wrap::after {
-      content: '';
-      position: absolute;
-      right: 0; top: 0; bottom: 0;
-      width: 24px;
-      background: linear-gradient(90deg, transparent, var(--bg-card));
-      pointer-events: none;
-    }
-    .table-wrap { position: relative; }
-  }
-  @media (max-width: 480px) {
-    .cards-row, .risk-grid { grid-template-columns: 1fr; }
-    .header h1 { font-size: 1.5rem; }
-    .card .value { font-size: 1.3rem; }
+  .panel h2 { font-size: 1.1rem; font-weight: 600; color: #fff;
+    padding-left: 12px; border-left: 3px solid var(--accent);
+    margin-bottom: 14px; }
+  .status { font-size: .82rem; color: var(--text-mute); margin-top: 8px; }
+  .status.err { color: var(--neg); }
+  /* ── Rendered markdown ──────────────────────────────── */
+  .md { font-size: .94rem; overflow-wrap: break-word; }
+  .md h1, .md h2, .md h3, .md h4 { color: #fff; margin: 20px 0 10px; line-height: 1.35; }
+  .md h1 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .md h2 { font-size: 1.22rem; }
+  .md h3 { font-size: 1.05rem; color: var(--accent); }
+  .md p  { margin: 10px 0; }
+  .md ul, .md ol { margin: 10px 0 10px 24px; }
+  .md li { margin: 4px 0; }
+  .md table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: .86rem; display: block; overflow-x: auto; }
+  .md th, .md td { padding: 7px 10px; border: 1px solid var(--border); text-align: left; }
+  .md th { background: var(--accent-dim); color: #fff; font-weight: 600; }
+  .md code { background: var(--bg-input); padding: 2px 6px; border-radius: 4px; font-size: .86em; }
+  .md pre { background: var(--bg-input); padding: 12px; border-radius: 6px; overflow-x: auto; margin: 12px 0; }
+  .md pre code { padding: 0; background: transparent; }
+  .md blockquote { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--text-mute); margin: 10px 0; }
+  .md hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
+  /* ── Highlight markers (spec v1.0 — schemas/highlight-markers.md) ─ */
+  .hl      { padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+  .hl-pos  { background: rgba(16,185,129,.22); color: #6ee7b7; }
+  .hl-neg  { background: rgba(239,68,68,.22);  color: #fca5a5; }
+  .hl-key  { background: rgba(245,158,11,.22); color: #fcd34d; }
+  .hl-warn { background: rgba(251,146,60,.22); color: #fdba74; }
+  .hl-u    { background: transparent; padding: 0; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+  /* ── Footer ─────────────────────────────────────────── */
+  footer { text-align: center; color: var(--text-mute); font-size: .8rem; margin-top: 28px; }
+  footer .disc { font-style: italic; opacity: .8; margin-top: 8px; }
+  @media (max-width: 560px) {
+    .controls { padding: 12px; gap: 8px; }
+    .lang-group { margin-left: 0; width: 100%; }
+    .lang-group button { flex: 1; }
+    .panel { padding: 16px; }
   }
 </style>
 </head>
 <body>
-
-<a class="skip-link" href="#app">Skip to main content</a>
-
-<!-- ═══════════════════ HEADER ═══════════════════ -->
-<header class="header" role="banner">
-  <button id="theme-toggle" class="theme-toggle" type="button"
-          aria-label="Toggle light / dark theme" title="Toggle theme">
-    <svg viewBox="0 0 24 24" aria-hidden="true" id="theme-icon">
-      <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z" fill="currentColor"/>
-    </svg>
-    <span>Theme</span>
-  </button>
-  <div class="container">
-    <h1>Options Strategy <span class="accent">Live Backtest</span></h1>
-    <p class="subtitle">Verified historical performance of automated trade recommendations</p>
-    <div class="header-meta" role="group" aria-label="Status">
-      <span id="last-updated" aria-live="polite">
-        <span class="freshness-badge freshness-stale">
-          <span class="freshness-dot" aria-hidden="true"></span>
-          Loading&hellip;
-        </span>
-      </span>
-      <span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-        <a href="https://github.com/laiyanlong/options-daily-report" target="_blank" rel="noopener">View Repository</a>
-      </span>
-    </div>
-  </div>
+<div class="wrap">
+<header>
+  <h1>Options Daily <span class="accent">Report</span></h1>
+  <p class="sub">TSLA · AMZN · NVDA — automated backtest + AI commentary</p>
 </header>
 
-<!-- ═══════════════════ MAIN ═══════════════════ -->
-<main class="container" id="app" role="main" tabindex="-1">
-  <div class="loading-overlay" id="loading" aria-live="polite" aria-busy="true">
-    <div class="spinner" aria-hidden="true"></div>
-    <span>Loading dashboard data&hellip;</span>
-  </div>
-</main>
+<div class="controls" role="group" aria-label="Report controls">
+  <label for="date-select">Date</label>
+  <select id="date-select" aria-label="Report date"></select>
+  <label for="ticker-select">Ticker</label>
+  <select id="ticker-select" aria-label="Ticker filter">
+    <option value="ALL">All</option>
+    <option value="TSLA">TSLA</option>
+    <option value="AMZN">AMZN</option>
+    <option value="NVDA">NVDA</option>
+  </select>
+  <span class="lang-group" role="group" aria-label="Language">
+    <button id="lang-en" type="button">EN</button>
+    <button id="lang-zh" type="button" class="active">中</button>
+  </span>
+</div>
 
-<!-- ═══════════════════ FOOTER ═══════════════════ -->
-<footer class="footer">
-  <div class="container">
-    <p>Data updated daily via GitHub Actions</p>
-    <p>Powered by <a href="https://dappgo.com" target="_blank" rel="noopener" class="brand">DappGo</a> &mdash; AI Automation for Enterprise</p>
-    <p><a href="https://github.com/laiyanlong/options-daily-report" target="_blank" rel="noopener">options-daily-report</a></p>
-    <p class="disclaimer">Past performance does not guarantee future results. This dashboard is for informational purposes only and does not constitute financial advice.</p>
-  </div>
+<section class="panel" aria-labelledby="report-heading">
+  <h2 id="report-heading">Daily Report</h2>
+  <div id="report-status" class="status">Loading…</div>
+  <article id="report-body" class="md" aria-live="polite"></article>
+</section>
+
+<section class="panel" aria-labelledby="ai-heading">
+  <h2 id="ai-heading">AI Commentary <span id="ai-date" style="font-size:.75rem;color:var(--text-mute);font-weight:400"></span></h2>
+  <div id="ai-status" class="status">Loading…</div>
+  <article id="ai-body" class="md" aria-live="polite"></article>
+</section>
+
+<section class="panel" id="hot-strikes-panel" aria-labelledby="hot-heading" hidden>
+  <h2 id="hot-heading">🔥 Community Hot Strikes
+    <span style="font-size:.75rem;color:var(--text-mute);font-weight:400">past 7 days · all app users</span>
+  </h2>
+  <div id="hot-body"></div>
+</section>
+
+<footer>
+  <p>Data updated daily via GitHub Actions &middot;
+     <a href="https://github.com/laiyanlong/options-daily-report" rel="noopener" target="_blank">repository</a> &middot;
+     Powered by <a href="https://dappgo.com" rel="noopener" target="_blank">DappGo</a></p>
+  <p class="disc">Past performance does not guarantee future results. Informational only; not financial advice.</p>
 </footer>
+</div>
 
 <script>
-// ── Theme (dark / light) ───────────────────────────
-(function initTheme() {
-  const saved = localStorage.getItem('theme');
-  const prefersLight = window.matchMedia?.('(prefers-color-scheme: light)').matches;
-  const theme = saved || (prefersLight ? 'light' : 'dark');
-  document.documentElement.setAttribute('data-theme', theme);
-})();
+// ── Config ──────────────────────────────────────────────
+const BASE = '..'; // dashboard/ → repo root
+const MANIFEST_URL = 'manifest.json';
+const AI_LATEST_URL = 'ai_commentary/latest.json';
+// Highlight-marker regex — mirror of schemas/highlight-markers.md v1.0
+const MARKER_RX = /\[\[(pos|neg|key|warn|u):([^\]\r\n]{1,120})\]\]/g;
+const TICKER_SECTION_RX = /^#+\s+/; // any heading
 
-function getTheme() {
-  return document.documentElement.getAttribute('data-theme') || 'dark';
-}
-
-function plotlyColorForTheme() {
-  const isLight = getTheme() === 'light';
-  return {
-    text:       isLight ? '#1a1d2e' : '#e0e0e0',
-    gridColor:  isLight ? 'rgba(30,64,175,.08)' : 'rgba(130,177,255,.08)',
-    zeroline:   isLight ? 'rgba(30,64,175,.12)' : 'rgba(130,177,255,.12)',
-    hoverBg:    isLight ? '#ffffff' : '#1f2940',
-    hoverBorder:isLight ? '#1e40af' : '#82b1ff',
-  };
-}
-
-// ── Plotly shared layout defaults ──────────────────
-function buildPlotlyLayoutBase() {
-  const c = plotlyColorForTheme();
-  return {
-    paper_bgcolor: 'rgba(0,0,0,0)',
-    plot_bgcolor:  'rgba(0,0,0,0)',
-    font: { family: 'SF Pro Display, -apple-system, sans-serif', color: c.text, size: 12 },
-    margin: { l: 56, r: 24, t: 36, b: 48 },
-    xaxis: { gridcolor: c.gridColor, zerolinecolor: c.zeroline },
-    yaxis: { gridcolor: c.gridColor, zerolinecolor: c.zeroline },
-    legend: { bgcolor: 'rgba(0,0,0,0)', font: { size: 11 } },
-    hoverlabel: { bgcolor: c.hoverBg, bordercolor: c.hoverBorder, font: { size: 12 } },
-  };
-}
-
-// Mutable base re-read at render time (so light/dark takes effect on re-render)
-let PLOTLY_LAYOUT_BASE = buildPlotlyLayoutBase();
-
-const PLOTLY_CONFIG = {
-  responsive: true,
-  displayModeBar: true,
-  modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-  displaylogo: false,
+// ── State ───────────────────────────────────────────────
+const state = {
+  manifest: null,
+  date: null,
+  ticker: 'ALL',
+  lang: 'zh', // reports are Chinese; applies to AI commentary toggle
+  aiLatest: null,
 };
 
-const STRATEGY_COLORS = {
-  'sell_put':     '#82b1ff',
-  'sell_call':    '#f5c542',
-  'iron_condor':  '#ce93d8',
-  'Sell Put':     '#82b1ff',
-  'Sell Call':    '#f5c542',
-  'Iron Condor':  '#ce93d8',
-};
+// ── DOM ─────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
 
-// ── Utility helpers ────────────────────────────────
-function fmt(n, decimals = 1) {
-  if (n == null) return '---';
-  return Number(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+// ── Marker + markdown rendering ─────────────────────────
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-function fmtDollar(n) {
-  if (n == null) return '---';
-  const sign = n >= 0 ? '+' : '';
-  return sign + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+function applyMarkers(text) {
+  return text.replace(MARKER_RX, (_m, type, raw) => `<mark class="hl hl-${type}">${escapeHtml(raw)}</mark>`);
 }
-function trendClass(v) { return v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral'; }
-function winRateColor(wr) { return wr >= 60 ? '#00e676' : wr >= 50 ? '#ffd740' : '#ff5252'; }
-
-// ── Render functions ───────────────────────────────
-
-function renderSummaryCards(s) {
-  return `
-    <div class="cards-row">
-      <div class="card">
-        <div class="label">Total Trades</div>
-        <div class="value" style="color:#fff">${s.total_trades}</div>
-        <div class="trend neutral">${s.wins}W / ${s.losses}L</div>
-      </div>
-      <div class="card">
-        <div class="label">Win Rate</div>
-        <div class="value ${trendClass(s.win_rate - 50)}">${fmt(s.win_rate)}%</div>
-        <div class="trend ${trendClass(s.win_rate - 50)}">${s.win_rate >= 50 ? '&#9650;' : '&#9660;'} ${s.win_rate >= 50 ? 'Above' : 'Below'} breakeven</div>
-      </div>
-      <div class="card">
-        <div class="label">Avg Return</div>
-        <div class="value ${trendClass(s.avg_return_pct)}">${s.avg_return_pct > 0 ? '+' : ''}${fmt(s.avg_return_pct)}%</div>
-        <div class="trend ${trendClass(s.avg_return_pct)}">Per trade</div>
-      </div>
-      <div class="card">
-        <div class="label">Profit Factor</div>
-        <div class="value ${trendClass(s.profit_factor - 1)}">${fmt(s.profit_factor)}</div>
-        <div class="trend ${trendClass(s.profit_factor - 1)}">${s.profit_factor >= 1.5 ? '&#9733; Strong' : s.profit_factor >= 1 ? 'Profitable' : 'Needs work'}</div>
-      </div>
-    </div>`;
-}
-
-function renderCumulativePnL(data) {
-  const traces = [];
-  const strategies = [
-    { key: 'sell_put',    name: 'Sell Put' },
-    { key: 'sell_call',   name: 'Sell Call' },
-    { key: 'iron_condor', name: 'Iron Condor' },
-  ];
-  for (const st of strategies) {
-    if (!data[st.key]) continue;
-    traces.push({
-      x: data.dates,
-      y: data[st.key],
-      name: st.name,
-      type: 'scatter',
-      mode: 'lines',
-      fill: 'tozeroy',
-      fillcolor: STRATEGY_COLORS[st.key] + '18',
-      line: { color: STRATEGY_COLORS[st.key], width: 2.5 },
-      hovertemplate: '%{x|%b %d}<br>' + st.name + ': $%{y:,.0f}<extra></extra>',
-    });
+function renderMarkdown(text) {
+  if (!text) return '';
+  try {
+    marked.setOptions({ breaks: true, gfm: true });
+    return marked.parse(applyMarkers(text));
+  } catch (e) {
+    console.warn('markdown render failed', e);
+    return `<pre>${escapeHtml(text)}</pre>`;
   }
-  const layout = {
-    ...PLOTLY_LAYOUT_BASE,
-    title: { text: 'Cumulative P&L', font: { size: 15, color: '#fff' }, x: 0.01 },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'P&L ($)', tickprefix: '$' },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis },
-    legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.15 },
-    hovermode: 'x unified',
-  };
-  Plotly.newPlot('chart-cpnl', traces, layout, PLOTLY_CONFIG);
 }
 
-function renderWinRateByStrategy(stats) {
-  const names = Object.keys(stats);
-  const rates = names.map(n => stats[n].win_rate);
-  const colors = rates.map(winRateColor);
-  const trace = {
-    x: names, y: rates, type: 'bar',
-    marker: { color: colors, line: { color: colors.map(c => c + 'cc'), width: 1 } },
-    text: rates.map(r => fmt(r) + '%'), textposition: 'outside',
-    textfont: { color: '#e0e0e0', size: 12 },
-    hovertemplate: '%{x}<br>Win Rate: %{y:.1f}%<br>Trades: %{customdata}<extra></extra>',
-    customdata: names.map(n => stats[n].trades),
-  };
-  const layout = {
-    ...PLOTLY_LAYOUT_BASE,
-    title: { text: 'Win Rate by Strategy', font: { size: 15, color: '#fff' }, x: 0.01 },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Win Rate (%)', range: [0, 100] },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis },
-    showlegend: false,
-  };
-  Plotly.newPlot('chart-wr-strategy', [trace], layout, PLOTLY_CONFIG);
-}
-
-function renderWinRateByTicker(stats) {
-  const tickers = Object.keys(stats).sort((a, b) => stats[b].win_rate - stats[a].win_rate);
-  const rates = tickers.map(t => stats[t].win_rate);
-  const colors = rates.map(winRateColor);
-  const trace = {
-    x: tickers, y: rates, type: 'bar',
-    marker: { color: colors },
-    text: rates.map(r => fmt(r) + '%'), textposition: 'outside',
-    textfont: { color: '#e0e0e0', size: 12 },
-    hovertemplate: '%{x}<br>Win Rate: %{y:.1f}%<br>Trades: %{customdata}<extra></extra>',
-    customdata: tickers.map(t => stats[t].trades),
-  };
-  const layout = {
-    ...PLOTLY_LAYOUT_BASE,
-    title: { text: 'Win Rate by Ticker', font: { size: 15, color: '#fff' }, x: 0.01 },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Win Rate (%)', range: [0, 100] },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis },
-    showlegend: false,
-  };
-  Plotly.newPlot('chart-wr-ticker', [trace], layout, PLOTLY_CONFIG);
-}
-
-// ── Monthly Returns: one bar chart per strategy ──────────
-function renderMonthlyByStrategy(monthly) {
-  const container = document.getElementById('monthly-charts');
-  const strategies = Object.keys(monthly).filter(k => k !== 'months');
-  if (!strategies.length || !monthly.months) { container.innerHTML = '<p style="color:#90a4ae">No monthly data</p>'; return; }
-
-  const stratColors = { sell_put: '#EF553B', sell_call: '#636EFA', iron_condor: '#00CC96' };
-  const stratNames = { sell_put: 'Sell Put', sell_call: 'Sell Call', iron_condor: 'Iron Condor' };
-
-  let html = '';
-  strategies.forEach(s => {
-    const divId = 'chart-monthly-' + s.replace(/[^a-z_]/g, '');
-    html += `<div class="chart-wrap" style="flex:1;min-width:280px"><div id="${divId}" style="height:280px"></div></div>`;
-  });
-  container.innerHTML = html;
-
-  strategies.forEach(s => {
-    const divId = 'chart-monthly-' + s.replace(/[^a-z_]/g, '');
-    const vals = monthly[s] || [];
-    const colors = vals.map(v => v >= 0 ? '#00e676' : '#ff5252');
-    Plotly.newPlot(divId, [{
-      x: monthly.months, y: vals, type: 'bar',
-      marker: { color: colors },
-      text: vals.map(v => (v >= 0 ? '+' : '') + fmt(v) + '%'),
-      textposition: 'outside', textfont: { size: 11, color: '#e0e0e0' },
-      hovertemplate: '%{x}<br>Return: %{y:.2f}%<extra></extra>',
-    }], {
-      ...PLOTLY_LAYOUT_BASE, height: 280,
-      title: { text: stratNames[s] || s, font: { size: 14, color: stratColors[s] || '#fff' }, x: 0.01 },
-      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Return %', zeroline: true, zerolinecolor: '#555' },
-    }, PLOTLY_CONFIG);
-  });
-}
-
-// ── Strike Comparison: best CP across expiry dates ──────
-function renderStrikeComparison(data) {
-  const el = document.getElementById('chart-strike-compare');
-  const trades = data.recent_trades || [];
-  if (!trades.length) {
-    el.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:40px">Strike comparison available when trades accumulate</p>';
-    return;
+// ── Ticker slicing for the daily report ─────────────────
+// Reports have per-ticker sections like "## TSLA" / "## 📊 TSLA - ..."
+// When a ticker is picked, extract only matching sections (+ preamble).
+function sliceByTicker(md, ticker) {
+  if (ticker === 'ALL') return md;
+  const lines = md.split('\n');
+  const out = [];
+  let include = true;      // preamble by default
+  let sawTickerHeading = false;
+  const rxTicker = new RegExp(`\\b${ticker}\\b`, 'i');
+  for (const line of lines) {
+    const isH = /^#{1,3}\s+/.test(line);
+    if (isH) {
+      // A heading at h1/h2/h3 level decides include/exclude.
+      // Any heading mentioning the ticker turns inclusion ON; any other
+      // ticker name turns it OFF; headings with no ticker keep previous.
+      const mentionsSelf = rxTicker.test(line);
+      const otherTickers = ['TSLA', 'AMZN', 'NVDA'].filter(t => t !== ticker);
+      const mentionsOther = otherTickers.some(t => new RegExp(`\\b${t}\\b`).test(line));
+      if (mentionsSelf)       { include = true;  sawTickerHeading = true; }
+      else if (mentionsOther) { include = false; sawTickerHeading = true; }
+      // else keep include as-is (e.g. top-level sections shared across tickers)
+    }
+    if (include) out.push(line);
   }
-
-  // Group by symbol → show premium & P&L per strike, sorted by premium desc
-  const bySymbol = {};
-  trades.forEach(t => {
-    if (!bySymbol[t.symbol]) bySymbol[t.symbol] = [];
-    bySymbol[t.symbol].push(t);
-  });
-
-  const symbols = Object.keys(bySymbol).sort();
-  const symColors = { TSLA: '#EF553B', AMZN: '#636EFA', NVDA: '#00CC96' };
-  const traces = [];
-
-  symbols.forEach(sym => {
-    const symTrades = bySymbol[sym].sort((a, b) => b.premium - a.premium);
-    // Take top 8 by premium to avoid clutter
-    const top = symTrades.slice(0, 8);
-
-    traces.push({
-      x: top.map(t => `$${t.strike}`),
-      y: top.map(t => t.premium),
-      name: sym + ' (Premium)',
-      type: 'bar',
-      marker: { color: symColors[sym] || '#82b1ff', opacity: 0.85 },
-      text: top.map(t => {
-        const wr = t.result === 'win' ? '✅' : '❌';
-        return `$${t.premium.toFixed(2)} | ${t.strategy.replace('_',' ')} | ${t.expiry} ${wr}`;
-      }),
-      textposition: 'outside',
-      textfont: { size: 10, color: '#e0e0e0' },
-      hovertemplate: '<b>%{x}</b><br>' +
-        'Premium: $%{y:.2f}<br>' +
-        '%{text}<extra>' + sym + '</extra>',
-    });
-  });
-
-  // Add a scatter trace for P&L overlay
-  symbols.forEach(sym => {
-    const symTrades = bySymbol[sym].sort((a, b) => b.premium - a.premium).slice(0, 8);
-    traces.push({
-      x: symTrades.map(t => `$${t.strike}`),
-      y: symTrades.map(t => t.pnl),
-      name: sym + ' (P&L)',
-      type: 'scatter',
-      mode: 'markers+text',
-      marker: {
-        color: symTrades.map(t => t.pnl >= 0 ? '#00e676' : '#ff5252'),
-        size: 12,
-        symbol: 'diamond',
-      },
-      text: symTrades.map(t => (t.pnl >= 0 ? '+' : '') + '$' + t.pnl.toFixed(2)),
-      textposition: 'top center',
-      textfont: { size: 9, color: symTrades.map(t => t.pnl >= 0 ? '#00e676' : '#ff5252') },
-      yaxis: 'y2',
-      hovertemplate: 'Strike: %{x}<br>P&L: %{text}<extra>' + sym + ' P&L</extra>',
-    });
-  });
-
-  Plotly.newPlot(el, traces, {
-    ...PLOTLY_LAYOUT_BASE,
-    title: { text: 'Strike Comparison — Premium vs P&L by Ticker', font: { size: 15, color: '#fff' }, x: 0.01 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Strike Price', categoryorder: 'total descending' },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Premium ($)', tickprefix: '$', side: 'left' },
-    yaxis2: { title: 'P&L ($)', tickprefix: '$', overlaying: 'y', side: 'right', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#90a4ae' }, titlefont: { color: '#90a4ae' }, zeroline: true, zerolinecolor: '#555' },
-    barmode: 'group',
-    legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.22 },
-    showlegend: true,
-  }, PLOTLY_CONFIG);
+  return sawTickerHeading ? out.join('\n') : md;
 }
 
-// ── TSLA Options Matrix ──────────────────────────────────
-function renderTslaMatrix(matrix) {
-  const chartEl = document.getElementById('tsla-matrix-chart');
-  const tableEl = document.getElementById('tsla-matrix-table');
-  const tabEl = document.getElementById('tsla-matrix-tabs');
+// ── Fetch helpers ───────────────────────────────────────
+async function fetchJSON(url) {
+  const r = await fetch(url, { cache: 'no-cache' });
+  if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+  return r.json();
+}
+async function fetchText(url) {
+  const r = await fetch(url, { cache: 'no-cache' });
+  if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
+  return r.text();
+}
 
-  if (!matrix || !matrix.expiries || !matrix.expiries.length) {
-    chartEl.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:60px">TSLA matrix data updates when dashboard workflow runs</p>';
-    return;
+// ── Report loading ──────────────────────────────────────
+async function loadReport() {
+  const date = state.date;
+  if (!date) return;
+  $('report-status').textContent = `Loading ${date}…`;
+  $('report-status').classList.remove('err');
+  $('report-body').innerHTML = '';
+  try {
+    const md = await fetchText(`${BASE}/reports/${date}.md`);
+    const sliced = sliceByTicker(md, state.ticker);
+    $('report-body').innerHTML = renderMarkdown(sliced);
+    $('report-status').textContent =
+      state.ticker === 'ALL' ? `Report: ${date}` : `Report: ${date} · filtered to ${state.ticker}`;
+  } catch (e) {
+    $('report-status').textContent = `Could not load reports/${date}.md (${e.message})`;
+    $('report-status').classList.add('err');
   }
+}
 
-  const price = matrix.price;
-  let activeExpIdx = 0;
-  let activeType = 'puts'; // 'puts' or 'calls'
-
-  function buildTabs() {
-    let html = '<span style="color:#90a4ae;font-size:0.8em;margin-right:4px">Expiry:</span>';
-    matrix.expiries.forEach((exp, i) => {
-      const active = i === activeExpIdx ? 'background:#EF553B;color:#fff;' : 'background:#2a2a4a;color:#90a4ae;';
-      html += `<button class="mtab" data-idx="${i}" style="${active}border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:0.8em">${exp.date} (${exp.dte}d)</button>`;
-    });
-    html += '<span style="color:#90a4ae;font-size:0.8em;margin:0 4px 0 16px">Type:</span>';
-    ['puts', 'calls'].forEach(t => {
-      const active = t === activeType ? 'background:#636EFA;color:#fff;' : 'background:#2a2a4a;color:#90a4ae;';
-      html += `<button class="mtab" data-type="${t}" style="${active}border:none;padding:5px 14px;border-radius:4px;cursor:pointer;font-size:0.8em">${t === 'puts' ? 'Sell Put' : 'Sell Call'}</button>`;
-    });
-    tabEl.innerHTML = html;
-    tabEl.querySelectorAll('.mtab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.idx !== undefined) activeExpIdx = parseInt(btn.dataset.idx);
-        if (btn.dataset.type) activeType = btn.dataset.type;
-        buildTabs();
-        renderView();
-      });
-    });
-  }
-
-  function renderView() {
-    const exp = matrix.expiries[activeExpIdx];
-    const rows = activeType === 'puts' ? exp.puts : exp.calls;
-    if (!rows || !rows.length) {
-      chartEl.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:40px">No data for this selection</p>';
-      tableEl.innerHTML = '';
+// ── AI commentary loading (bilingual) ───────────────────
+async function loadAI() {
+  $('ai-status').textContent = 'Loading AI commentary…';
+  $('ai-status').classList.remove('err');
+  try {
+    if (!state.aiLatest) state.aiLatest = await fetchJSON(AI_LATEST_URL);
+    const payload = state.aiLatest;
+    $('ai-date').textContent = payload.date ? `· ${payload.date}` : '';
+    const body = (payload[state.lang] || payload.zh || payload.en || '').trim();
+    if (!body) {
+      $('ai-status').textContent = 'No commentary available';
+      $('ai-body').innerHTML = '';
       return;
     }
-
-    // Find best annualized return
-    const bestAnn = Math.max(...rows.map(r => r.annualized));
-
-    // ── Chart: multi-axis bar + scatter ──
-    const strikes = rows.map(r => '$' + r.strike);
-
-    // Premium bars
-    const premiumTrace = {
-      x: strikes, y: rows.map(r => r.bid), name: 'Premium (Bid)',
-      type: 'bar', marker: { color: rows.map(r => r.annualized === bestAnn ? '#f5c542' : '#EF553B'), opacity: 0.85 },
-      text: rows.map(r => '$' + r.bid.toFixed(2)),
-      textposition: 'outside', textfont: { size: 10, color: '#e0e0e0' },
-      hovertemplate: 'Strike: %{x}<br>Bid: $%{y:.2f}<extra>Premium</extra>',
-    };
-
-    // IV line
-    const ivTrace = {
-      x: strikes, y: rows.map(r => r.iv), name: 'IV %',
-      type: 'scatter', mode: 'lines+markers+text',
-      line: { color: '#00CC96', width: 2 }, marker: { size: 6 },
-      text: rows.map(r => r.iv.toFixed(1) + '%'),
-      textposition: 'top center', textfont: { size: 9, color: '#00CC96' },
-      yaxis: 'y2',
-      hovertemplate: 'IV: %{y:.1f}%<extra></extra>',
-    };
-
-    // POP line
-    const popTrace = {
-      x: strikes, y: rows.map(r => r.pop), name: 'POP %',
-      type: 'scatter', mode: 'lines+markers+text',
-      line: { color: '#AB63FA', width: 2, dash: 'dot' }, marker: { size: 6, symbol: 'diamond' },
-      text: rows.map(r => r.pop.toFixed(0) + '%'),
-      textposition: 'bottom center', textfont: { size: 9, color: '#AB63FA' },
-      yaxis: 'y3',
-      hovertemplate: 'POP: %{y:.1f}%<extra></extra>',
-    };
-
-    const typeLabel = activeType === 'puts' ? 'Sell Put' : 'Sell Call';
-    Plotly.newPlot(chartEl, [premiumTrace, ivTrace, popTrace], {
-      ...PLOTLY_LAYOUT_BASE, height: 480,
-      title: { text: `TSLA ${typeLabel} Matrix — ${exp.date} (${exp.dte}d) | Price: $${price}`, font: { size: 14, color: '#fff' }, x: 0.01 },
-      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Strike Price', tickangle: -45 },
-      yaxis: { title: 'Premium ($)', tickprefix: '$', side: 'left', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#EF553B' }, titlefont: { color: '#EF553B' } },
-      yaxis2: { title: 'IV %', overlaying: 'y', side: 'right', ticksuffix: '%', tickfont: { color: '#00CC96' }, titlefont: { color: '#00CC96' }, showgrid: false },
-      yaxis3: { title: 'POP %', overlaying: 'y', side: 'right', position: 0.95, ticksuffix: '%', tickfont: { color: '#AB63FA' }, titlefont: { color: '#AB63FA' }, showgrid: false, range: [0, 100] },
-      barmode: 'group',
-      legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.2 },
-    }, PLOTLY_CONFIG);
-
-    // ── Table ──
-    let tbl = `<table><thead><tr>
-      <th>Strike</th><th>OTM%</th><th>Bid</th><th>Ask</th><th>Spread</th>
-      <th>IV</th><th>Delta</th><th>Volume</th><th>OI</th>
-      <th>Ann. Return</th><th>POP</th><th>Rating</th>
-    </tr></thead><tbody>`;
-
-    rows.forEach(r => {
-      const isBest = r.annualized === bestAnn;
-      const bg = isBest ? 'background:rgba(245,197,66,0.12);' : '';
-      const star = isBest ? ' ★' : '';
-
-      // Rating: combine POP + annualized + spread quality
-      let rating = 0;
-      if (r.pop >= 70) rating += 3; else if (r.pop >= 60) rating += 2; else rating += 1;
-      if (r.annualized >= 30) rating += 3; else if (r.annualized >= 15) rating += 2; else rating += 1;
-      if (r.spread_pct < 5) rating += 2; else if (r.spread_pct < 10) rating += 1;
-      const stars = '★'.repeat(Math.min(rating, 5)) + '☆'.repeat(Math.max(0, 5 - rating));
-      const ratingColor = rating >= 7 ? '#00e676' : rating >= 5 ? '#f5c542' : '#ff5252';
-
-      tbl += `<tr style="${bg}">
-        <td><strong>$${r.strike}</strong>${star}</td>
-        <td>${r.otm_pct}%</td>
-        <td>$${r.bid.toFixed(2)}</td>
-        <td>$${r.ask.toFixed(2)}</td>
-        <td><span style="color:${r.spread_pct < 10 ? '#00e676' : '#ff5252'}">${r.spread_pct.toFixed(1)}% ${r.spread_quality}</span></td>
-        <td>${r.iv.toFixed(1)}%</td>
-        <td>${r.delta.toFixed(4)}</td>
-        <td>${r.volume.toLocaleString()}</td>
-        <td>${r.oi.toLocaleString()}</td>
-        <td><strong>${r.annualized.toFixed(1)}%</strong></td>
-        <td>${r.pop.toFixed(1)}%</td>
-        <td style="color:${ratingColor}">${stars}</td>
-      </tr>`;
-    });
-
-    tbl += '</tbody></table>';
-    tbl += `<p style="font-size:0.75em;color:#616161;margin-top:8px">★ = Best annualized return | Rating: POP + Ann.Return + Spread Quality | TSLA current price: $${price}</p>`;
-    tableEl.innerHTML = tbl;
+    $('ai-status').textContent = `Generated ${payload.generated_at || payload.date || ''}`;
+    $('ai-body').innerHTML = renderMarkdown(body);
+  } catch (e) {
+    $('ai-status').textContent = `AI commentary unavailable (${e.message})`;
+    $('ai-status').classList.add('err');
   }
-
-  buildTabs();
-  renderView();
 }
 
-// ── Grouped Trades with tab filters ──────────────────────
-function renderGroupedTrades(trades) {
-  const cols = [
-    { key: 'date',     label: 'Date' },
-    { key: 'symbol',   label: 'Symbol' },
-    { key: 'strategy', label: 'Strategy' },
-    { key: 'strike',   label: 'Strike',  fmt: v => '$' + Number(v).toLocaleString() },
-    { key: 'premium',  label: 'Premium', fmt: v => '$' + Number(v).toFixed(2) },
-    { key: 'expiry',   label: 'Expiry' },
-    { key: 'result',   label: 'Result',  fmt: v => `<span class="result-${v}">${v.toUpperCase()}</span>` },
-    { key: 'pnl',      label: 'P&L',     fmt: v => `<span class="${v >= 0 ? 'pnl-pos' : 'pnl-neg'}">${fmtDollar(v)}</span>` },
-  ];
-
-  // Build filter tabs
-  const tabWrap = document.getElementById('trade-tabs');
-  const symbols = ['All', ...new Set(trades.map(t => t.symbol))];
-  const strategies = ['All', ...new Set(trades.map(t => t.strategy))];
-
-  let activeSymbol = 'All';
-  let activeStrategy = 'All';
-  let sortCol = null;
-  let sortAsc = true;
-
-  function buildTabs() {
-    let html = '<span style="color:#90a4ae;font-size:0.8em;margin-right:4px">Ticker:</span>';
-    symbols.forEach(s => {
-      const active = s === activeSymbol ? 'background:var(--accent,#636EFA);color:#fff;' : 'background:#2a2a4a;color:#90a4ae;';
-      html += `<button class="tab-btn" data-type="symbol" data-val="${s}" style="${active}border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.8em">${s}</button>`;
-    });
-    html += '<span style="color:#90a4ae;font-size:0.8em;margin:0 4px 0 12px">Strategy:</span>';
-    strategies.forEach(s => {
-      const active = s === activeStrategy ? 'background:var(--accent,#636EFA);color:#fff;' : 'background:#2a2a4a;color:#90a4ae;';
-      const label = s === 'All' ? 'All' : s.replace('_', ' ');
-      html += `<button class="tab-btn" data-type="strategy" data-val="${s}" style="${active}border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:0.8em">${label}</button>`;
-    });
-    tabWrap.innerHTML = html;
-    tabWrap.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.type === 'symbol') activeSymbol = btn.dataset.val;
-        else activeStrategy = btn.dataset.val;
-        buildTabs();
-        renderTable();
-      });
-    });
+// ── Init ────────────────────────────────────────────────
+function populateDateDropdown(dates, selected) {
+  const sel = $('date-select');
+  sel.innerHTML = '';
+  for (const d of dates) {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = d;
+    sel.appendChild(opt);
   }
-
-  function getFiltered() {
-    return trades.filter(t => {
-      if (activeSymbol !== 'All' && t.symbol !== activeSymbol) return false;
-      if (activeStrategy !== 'All' && t.strategy !== activeStrategy) return false;
-      return true;
-    });
-  }
-
-  function buildTable(data) {
-    if (!data.length) return '<p style="color:#90a4ae;text-align:center;padding:20px">No trades match filter</p>';
-    // Group by expiry
-    const byExpiry = {};
-    data.forEach(t => {
-      const exp = t.expiry || 'unknown';
-      if (!byExpiry[exp]) byExpiry[exp] = [];
-      byExpiry[exp].push(t);
-    });
-
-    let html = '';
-    Object.entries(byExpiry).sort().forEach(([exp, group]) => {
-      const totalPnl = group.reduce((s, t) => s + (t.pnl || 0), 0);
-      const wins = group.filter(t => t.result === 'win').length;
-      const wr = group.length > 0 ? (wins / group.length * 100).toFixed(0) : 0;
-      const pnlClass = totalPnl >= 0 ? 'pnl-pos' : 'pnl-neg';
-
-      html += `<div style="margin-bottom:16px">`;
-      html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">`;
-      html += `<span style="color:#82b1ff;font-weight:600;font-size:0.9em">Expiry: ${exp} (${group.length} trades)</span>`;
-      html += `<span style="font-size:0.85em">WR: ${wr}% | P&L: <span class="${pnlClass}">${fmtDollar(totalPnl)}</span></span>`;
-      html += `</div>`;
-
-      const thead = cols.map(c => {
-        const arrow = sortCol === c.key ? (sortAsc ? ' &#9650;' : ' &#9660;') : '';
-        return `<th data-col="${c.key}">${c.label}<span class="sort-arrow">${arrow}</span></th>`;
-      }).join('');
-
-      // Sort group, highlight best premium
-      const sorted = [...group];
-      if (sortCol) {
-        sorted.sort((a, b) => {
-          let va = a[sortCol], vb = b[sortCol];
-          if (typeof va === 'string') { va = va.toLowerCase(); vb = (vb||'').toLowerCase(); }
-          return sortAsc ? (va < vb ? -1 : va > vb ? 1 : 0) : (va > vb ? -1 : va < vb ? 1 : 0);
-        });
-      }
-      const maxPremium = Math.max(...sorted.map(t => t.premium || 0));
-
-      const tbody = sorted.map(t => {
-        const cls = t.result === 'win' ? 'row-win' : 'row-loss';
-        const best = t.premium === maxPremium ? ' style="background:rgba(0,230,118,0.08)"' : '';
-        const tds = cols.map(c => {
-          let val = c.fmt ? c.fmt(t[c.key]) : t[c.key];
-          if (c.key === 'premium' && t.premium === maxPremium) val = `<strong>${val}</strong> ★`;
-          return `<td>${val}</td>`;
-        }).join('');
-        return `<tr class="${cls}"${best}>${tds}</tr>`;
-      }).join('');
-
-      html += `<table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
-      html += `</div>`;
-    });
-    return html;
-  }
-
-  const wrap = document.getElementById('trades-table');
-
-  function renderTable() {
-    const filtered = getFiltered();
-    wrap.innerHTML = buildTable(filtered);
-    wrap.querySelectorAll('th').forEach(th => {
-      th.setAttribute('role', 'button');
-      th.setAttribute('tabindex', '0');
-      th.setAttribute('aria-sort', sortCol === th.dataset.col ? (sortAsc ? 'ascending' : 'descending') : 'none');
-      const handler = () => {
-        const col = th.dataset.col;
-        if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = true; }
-        renderTable();
-      };
-      th.addEventListener('click', handler);
-      th.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); }
-      });
-    });
-  }
-
-  buildTabs();
-  renderTable();
+  sel.value = selected;
 }
 
-function renderRiskMetrics(s) {
-  const metrics = [
-    { label: 'Max Drawdown',     value: fmt(s.max_drawdown_pct) + '%', cls: 'negative' },
-    { label: 'Sharpe Ratio',     value: fmt(s.sharpe_ratio, 2),        cls: trendClass(s.sharpe_ratio) },
-    { label: 'Sortino Ratio',    value: fmt(s.sortino_ratio, 2),       cls: trendClass(s.sortino_ratio) },
-    { label: 'Avg Win / Loss',   value: fmtDollar(s.avg_win) + ' / ' + fmtDollar(s.avg_loss), cls: 'neutral' },
-  ];
-  return metrics.map(m => `
-    <div class="risk-card">
-      <div class="risk-label">${m.label}</div>
-      <div class="risk-value ${m.cls}">${m.value}</div>
-    </div>
-  `).join('');
+function wireControls() {
+  $('date-select').addEventListener('change', (e) => {
+    state.date = e.target.value; loadReport();
+  });
+  $('ticker-select').addEventListener('change', (e) => {
+    state.ticker = e.target.value; loadReport();
+  });
+  const applyLang = (lang) => {
+    state.lang = lang;
+    $('lang-en').classList.toggle('active', lang === 'en');
+    $('lang-zh').classList.toggle('active', lang === 'zh');
+    loadAI();
+  };
+  $('lang-en').addEventListener('click', () => applyLang('en'));
+  $('lang-zh').addEventListener('click', () => applyLang('zh'));
 }
 
-// ── Main bootstrap ─────────────────────────────────
-async function init() {
-  const app = document.getElementById('app');
+// ── Hot Strikes (Phase 0 community signal) ────────────────
+// Public anon-key read; RLS gates raw events but popular_options view
+// is granted SELECT to anon. Section hides itself if Supabase isn't
+// configured or the view is empty.
+const SUPABASE_URL = 'https://ufshdzyfrbwgtdhtymsf.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_5XoK3V6IU1hRVEoFXRmq8A_Tnz384qU';
+
+async function loadHotStrikes() {
+  if (!SUPABASE_URL || !SUPABASE_ANON) return;
   try {
-    const resp = await fetch('data.json');
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-    const data = await resp.json();
+    const r = await fetch(
+      `${SUPABASE_URL}/rest/v1/popular_options?select=symbol,option_type,strike,unique_users,total_taps&order=unique_users.desc,total_taps.desc&limit=10`,
+      { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` } }
+    );
+    if (!r.ok) return;
+    const rows = await r.json();
+    if (!Array.isArray(rows) || rows.length === 0) return;
 
-    // Update header timestamp with freshness badge (auto-refresh every 30s)
-    renderFreshnessBadge(data.last_updated);
-    setInterval(() => renderFreshnessBadge(data.last_updated), 30000);
-
-    // Build the dashboard DOM
-    app.innerHTML = `
-      <!-- Live Stock Prices -->
-      <h2 class="section-title">Live Market Data <span id="live-status" style="font-size:0.6em;color:#90a4ae;font-weight:400">Loading...</span></h2>
-      <div class="cards" id="live-prices"></div>
-
-      <!-- Performance Summary -->
-      <h2 class="section-title">Performance Summary</h2>
-      ${renderSummaryCards(data.summary)}
-
-      <!-- Cumulative P&L -->
-      <h2 class="section-title">Cumulative P&L</h2>
-      <div class="chart-wrap"><div id="chart-cpnl" style="height:400px"></div></div>
-
-      <!-- Win Rate Charts -->
-      <h2 class="section-title">Win Rate Analysis</h2>
-      <div class="chart-row">
-        <div class="chart-wrap"><div id="chart-wr-strategy" style="height:340px"></div></div>
-        <div class="chart-wrap"><div id="chart-wr-ticker" style="height:340px"></div></div>
-      </div>
-
-      <!-- Monthly Returns: per-strategy breakdown -->
-      <h2 class="section-title">Monthly Returns by Strategy</h2>
-      <div class="chart-row" id="monthly-charts"></div>
-
-      <!-- TSLA Options Matrix -->
-      <h2 class="section-title">TSLA Options Matrix — Strike Comparison</h2>
-      <div id="tsla-matrix-tabs" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"></div>
-      <div id="tsla-matrix-chart" style="height:500px" class="chart-wrap"></div>
-      <div id="tsla-matrix-table" class="table-wrap" style="margin-top:12px"></div>
-
-      <!-- Strike Comparison: same expiry, different strikes -->
-      <h2 class="section-title">Strike Comparison — Best CP Value</h2>
-      <div class="chart-wrap"><div id="chart-strike-compare" style="height:400px"></div></div>
-
-      <!-- Recent Trades: grouped by symbol + strategy -->
-      <h2 class="section-title">Recent Trades</h2>
-      <div id="trade-tabs" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"></div>
-      <div class="table-wrap" id="trades-table"></div>
-
-      <!-- Risk Metrics -->
-      <h2 class="section-title">Risk Metrics</h2>
-      <div class="risk-grid">${renderRiskMetrics(data.summary)}</div>
+    const html = `
+      <table style="width:100%;border-collapse:collapse;font-size:.92rem;margin-top:.25rem">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);text-align:left">
+            <th style="padding:.4rem .25rem;color:var(--text-mute);font-weight:500">#</th>
+            <th style="padding:.4rem .25rem;color:var(--text-mute);font-weight:500">Symbol</th>
+            <th style="padding:.4rem .25rem;color:var(--text-mute);font-weight:500">Type</th>
+            <th style="padding:.4rem .25rem;color:var(--text-mute);font-weight:500;text-align:right">Strike</th>
+            <th style="padding:.4rem .25rem;color:var(--text-mute);font-weight:500;text-align:right">Users</th>
+            <th style="padding:.4rem .25rem;color:var(--text-mute);font-weight:500;text-align:right">Taps</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r, i) => `
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:.4rem .25rem;color:var(--text-mute)">${i + 1}</td>
+              <td style="padding:.4rem .25rem;font-weight:600;color:#fbbf24">${r.symbol}</td>
+              <td style="padding:.4rem .25rem;color:${r.option_type === 'put' ? '#fca5a5' : '#86efac'};font-weight:600;text-transform:uppercase">${r.option_type}</td>
+              <td style="padding:.4rem .25rem;text-align:right;font-family:ui-monospace,monospace">$${r.strike}</td>
+              <td style="padding:.4rem .25rem;text-align:right">${r.unique_users}</td>
+              <td style="padding:.4rem .25rem;text-align:right;color:var(--text-mute)">${r.total_taps}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
     `;
-
-    // Render Plotly charts (must happen after DOM insertion)
-    renderCumulativePnL(data.cumulative_pnl);
-    renderWinRateByStrategy(data.strategy_stats);
-    renderWinRateByTicker(data.ticker_stats);
-    renderMonthlyByStrategy(data.monthly_returns);
-    renderTslaMatrix(data.tsla_matrix || {});
-    renderStrikeFromData(data.strike_comparison || []);
-    renderGroupedTrades(data.recent_trades);
-
-    // Render live prices from server-side data (in data.json)
-    renderLivePrices(data.live_prices || []);
-    renderStrikeFromData(data.strike_comparison || []);
-
-    // Resize charts on window resize
-    window.addEventListener('resize', () => {
-      ['chart-cpnl', 'chart-wr-strategy', 'chart-wr-ticker', 'chart-strike-compare'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) Plotly.Plots.resize(el);
-      });
-      document.querySelectorAll('[id^="chart-monthly-"]').forEach(el => {
-        if (el) Plotly.Plots.resize(el);
-      });
-    });
-
-  } catch (err) {
-    app.innerHTML = `
-      <div class="error-msg">
-        <p style="font-size:2rem;margin-bottom:12px">&#9888;</p>
-        <p>Failed to load dashboard data</p>
-        <p style="font-size:.85rem;margin-top:8px;color:#90a4ae">${err.message}</p>
-        <p style="font-size:.82rem;margin-top:16px;color:#90a4ae">
-          Make sure <code>data.json</code> exists in the same directory as this page.
-        </p>
-      </div>`;
+    $('hot-body').innerHTML = html;
+    $('hot-strikes-panel').hidden = false;
+  } catch {
+    /* silent — section just stays hidden */
   }
 }
 
-// ── Live Prices (from server-side data.json) ─────────────
-function renderLivePrices(prices) {
-  const container = document.getElementById('live-prices');
-  const status = document.getElementById('live-status');
-  if (!container) return;
-
-  if (!prices || !prices.length) {
-    container.innerHTML = '<p style="color:var(--text-muted);font-size:0.9em">Price data updates when dashboard workflow runs. Trigger manually from GitHub Actions.</p>';
-    if (status) status.textContent = 'Awaiting data';
-    return;
-  }
-
-  // Render as semantic list so screen readers announce "list of N prices"
-  let html = '<ul style="list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px" role="list">';
-  prices.forEach(q => {
-    const isUp = q.change >= 0;
-    const changeColor = isUp ? 'var(--green)' : 'var(--red)';
-    const changeSign = isUp ? '+' : '';
-    const arrow = isUp ? '&#9650;' : '&#9660;';
-    const arrowLabel = isUp ? 'up' : 'down';
-    const state = q.market_state === 'REGULAR' ? 'LIVE' : q.market_state || '';
-
-    // Mini sparkline from intraday data — thicker stroke, gradient fill, tooltip
-    let sparkHtml = '';
-    if (q.intraday_prices && q.intraday_prices.length > 2) {
-      const min = Math.min(...q.intraday_prices);
-      const max = Math.max(...q.intraday_prices);
-      const range = max - min || 1;
-      const h = 36;
-      const w = 140;
-      const step = w / (q.intraday_prices.length - 1);
-      const points = q.intraday_prices.map((p, i) => `${i * step},${h - ((p - min) / range) * h}`).join(' ');
-      const areaPoints = `0,${h} ${points} ${w},${h}`;
-      const sparkId = `spark-grad-${q.symbol}`;
-      sparkHtml = `
-        <svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"
-             style="margin-top:8px;display:block" role="img"
-             aria-label="${q.symbol} intraday trend, ${arrowLabel} ${Math.abs(q.change_pct).toFixed(2)}%">
-          <defs>
-            <linearGradient id="${sparkId}" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stop-color="${isUp ? '#00e676' : '#ff5252'}" stop-opacity="0.35"/>
-              <stop offset="100%" stop-color="${isUp ? '#00e676' : '#ff5252'}" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          <polygon points="${areaPoints}" fill="url(#${sparkId})"/>
-          <polyline points="${points}" fill="none" stroke="${isUp ? '#00e676' : '#ff5252'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>`;
+async function init() {
+  wireControls();
+  try {
+    state.manifest = await fetchJSON(MANIFEST_URL);
+    const dates = state.manifest.reports || [];
+    if (!dates.length) {
+      $('report-status').textContent = 'No reports available.';
+      return;
     }
-
-    const ariaLabel = `${q.symbol} $${q.price.toFixed(2)}, ${arrowLabel} ${Math.abs(q.change_pct).toFixed(2)} percent`;
-    html += `
-      <li class="card" style="min-width:200px" role="listitem" aria-label="${ariaLabel}">
-        <div class="card-label" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:4px">
-          <strong style="color:var(--text);letter-spacing:0">${q.symbol}</strong>
-          ${state ? `<span style="font-size:.65rem;margin-left:6px">${state}</span>` : ''}
-        </div>
-        <div class="card-value" style="font-size:1.4rem;font-weight:700;line-height:1.2">$${q.price.toFixed(2)}</div>
-        <div class="card-sub" style="color:${changeColor};font-weight:600;font-size:.85rem;margin-top:2px">
-          <span aria-hidden="true">${arrow}</span> ${changeSign}${q.change.toFixed(2)} (${changeSign}${q.change_pct.toFixed(2)}%)
-        </div>
-        <div class="card-sub" style="font-size:.7em;color:var(--text-muted);margin-top:4px">
-          H: $${q.high.toFixed(2)} &middot; L: $${q.low.toFixed(2)} &middot; V: ${formatVol(q.volume)}
-        </div>
-        ${sparkHtml}
-      </li>`;
-  });
-  html += '</ul>';
-
-  container.innerHTML = html;
-  if (status) status.textContent = 'From last workflow run';
-}
-
-// ── Strike Comparison from live options data ──────────────
-function renderStrikeFromData(strikes) {
-  const el = document.getElementById('chart-strike-compare');
-  if (!strikes || !strikes.length) {
-    el.innerHTML = '<p style="color:#90a4ae;text-align:center;padding:40px">Strike data updates when dashboard workflow runs</p>';
-    return;
+    state.date = state.manifest.latest?.report || dates[0];
+    populateDateDropdown(dates, state.date);
+    loadReport();
+    loadAI();
+    loadHotStrikes();
+  } catch (e) {
+    $('report-status').textContent = `Could not load manifest.json (${e.message})`;
+    $('report-status').classList.add('err');
+    // Fallback: try AI commentary anyway
+    loadAI();
+    loadHotStrikes();
   }
-
-  // Group by symbol
-  const bySymbol = {};
-  strikes.forEach(s => {
-    if (!bySymbol[s.symbol]) bySymbol[s.symbol] = [];
-    bySymbol[s.symbol].push(s);
-  });
-
-  const symColors = { TSLA: '#EF553B', AMZN: '#636EFA', NVDA: '#00CC96' };
-  const traces = [];
-
-  Object.entries(bySymbol).sort().forEach(([sym, items]) => {
-    const sorted = items.sort((a, b) => b.premium - a.premium);
-
-    traces.push({
-      x: sorted.map(s => `$${s.strike}`),
-      y: sorted.map(s => s.premium),
-      name: sym,
-      type: 'bar',
-      marker: { color: symColors[sym] || '#82b1ff', opacity: 0.85 },
-      text: sorted.map(s =>
-        `$${s.premium.toFixed(2)} | ${s.otm_pct}% OTM | ${s.dte}d | Ann: ${s.annualized}%`
-      ),
-      textposition: 'outside',
-      textfont: { size: 9, color: '#e0e0e0' },
-      hovertemplate:
-        '<b>%{x}</b><br>' +
-        'Premium: $%{y:.2f}<br>' +
-        '%{text}<br>' +
-        '<extra>' + sym + '</extra>',
-    });
-  });
-
-  Plotly.newPlot(el, traces, {
-    ...PLOTLY_LAYOUT_BASE,
-    title: { text: 'Current Options — Premium by Strike (DTE ≥ 5, $1-$7)', font: { size: 14, color: '#fff' }, x: 0.01 },
-    xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Strike Price', tickangle: -45 },
-    yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Premium ($)', tickprefix: '$' },
-    barmode: 'group',
-    legend: { ...PLOTLY_LAYOUT_BASE.legend, orientation: 'h', y: -0.25 },
-  }, PLOTLY_CONFIG);
 }
 
-function formatVol(v) {
-  if (!v) return 'N/A';
-  if (v >= 1e9) return (v/1e9).toFixed(1) + 'B';
-  if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
-  if (v >= 1e3) return (v/1e3).toFixed(0) + 'K';
-  return v.toString();
-}
-
-// ── Freshness badge (WCAG-friendly) ──────────────
-function renderFreshnessBadge(isoTimestamp) {
-  const el = document.getElementById('last-updated');
-  if (!el) return;
-  let cls, label;
-  if (!isoTimestamp) {
-    cls = 'freshness-old';
-    label = 'No data';
-  } else {
-    const ts = new Date(isoTimestamp);
-    const ageMs = Date.now() - ts.getTime();
-    const ageHours = ageMs / 3600000;
-    if (ageHours < 2)       { cls = 'freshness-fresh'; label = `Updated ${formatAgo(ageMs)} ago`; }
-    else if (ageHours < 24) { cls = 'freshness-stale'; label = `Updated ${formatAgo(ageMs)} ago`; }
-    else                    { cls = 'freshness-old';   label = `Stale — ${formatAgo(ageMs)} ago`; }
-  }
-  el.innerHTML = `
-    <span class="freshness-badge ${cls}">
-      <span class="freshness-dot" aria-hidden="true"></span>
-      <span>${label}</span>
-    </span>`;
-}
-
-function formatAgo(ms) {
-  const min = Math.floor(ms / 60000);
-  if (min < 1) return 'just now';
-  if (min < 60) return `${min}m`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h`;
-  const days = Math.floor(hr / 24);
-  return `${days}d`;
-}
-
-// ── Theme toggle handler ─────────────────────────
-function setupThemeToggle() {
-  const btn = document.getElementById('theme-toggle');
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    const next = getTheme() === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
-
-    // Re-render all Plotly charts with new colors
-    PLOTLY_LAYOUT_BASE = buildPlotlyLayoutBase();
-    const c = plotlyColorForTheme();
-    document.querySelectorAll('.js-plotly-plot').forEach(el => {
-      Plotly.relayout(el, {
-        'font.color':             c.text,
-        'xaxis.gridcolor':        c.gridColor,
-        'xaxis.zerolinecolor':    c.zeroline,
-        'yaxis.gridcolor':        c.gridColor,
-        'yaxis.zerolinecolor':    c.zeroline,
-        'hoverlabel.bgcolor':     c.hoverBg,
-        'hoverlabel.bordercolor': c.hoverBorder,
-      }).catch(() => { /* chart not fully rendered yet */ });
-    });
-  });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  setupThemeToggle();
-  init();
-});
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>

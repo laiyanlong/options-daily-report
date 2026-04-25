@@ -1,6 +1,10 @@
 # Options Daily Report — Data
 
-**Read in:** [English](README.md) · [繁體中文](README.zh-TW.md) · [简体中文](README.zh-CN.md)
+**Read in:** [English](README.md) · [繁體中文](README.zh-TW.md)
+
+[![Schema Check](https://github.com/laiyanlong/options-daily-report/actions/workflows/schema-check.yml/badge.svg)](https://github.com/laiyanlong/options-daily-report/actions/workflows/schema-check.yml)
+[![Guard — no Python](https://github.com/laiyanlong/options-daily-report/actions/workflows/guard-no-python.yml/badge.svg)](https://github.com/laiyanlong/options-daily-report/actions/workflows/guard-no-python.yml)
+[![Licence: CC BY-NC 4.0](https://img.shields.io/badge/Licence-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 
 Published output data for the **Options** mobile app.
 

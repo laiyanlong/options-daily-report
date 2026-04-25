@@ -1,0 +1,80 @@
+name: Schema Check
+
+# Validates the generated JSON artifacts against their schemas on every
+# push. This catches contract breakage the instant options-core pushes
+# bad data here, before the mobile app hits it.
+
+on:
+  push:
+    paths:
+      - 'dashboard/data.json'
+      - 'dashboard/weekly_summary.json'
+      - 'dashboard/ai_commentary/*.json'
+      - 'schemas/*.schema.json'
+  pull_request:
+    paths:
+      - 'dashboard/**'
+      - 'schemas/**'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ajv-cli
+        run: npm install -g ajv-cli ajv-formats
+
+      - name: Validate data.json
+        run: |
+          if [ -f dashboard/data.json ]; then
+            ajv validate \
+              --spec=draft2020 \
+              -s schemas/data.schema.json \
+              -d dashboard/data.json \
+              --all-errors --verbose
+          else
+            echo "dashboard/data.json missing — skip"
+          fi
+
+      - name: Validate weekly_summary.json
+        run: |
+          if [ -f dashboard/weekly_summary.json ]; then
+            ajv validate \
+              --spec=draft2020 \
+              -s schemas/weekly_summary.schema.json \
+              -d dashboard/weekly_summary.json \
+              --all-errors --verbose
+          else
+            echo "dashboard/weekly_summary.json missing — skip"
+          fi
+
+      - name: Validate ai_commentary files
+        run: |
+          shopt -s nullglob
+          files=(dashboard/ai_commentary/*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No ai_commentary files — skip"
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "Validating $f"
+            ajv validate \
+              --spec=draft2020 \
+              -s schemas/ai_commentary.schema.json \
+              -d "$f" \
+              --all-errors --verbose
+          done
+
+      - name: Validate manifest.json
+        run: |
+          if [ -f dashboard/manifest.json ]; then
+            ajv validate \
+              --spec=draft2020 \
+              -s schemas/manifest.schema.json \
+              -d dashboard/manifest.json \
+              --all-errors --verbose
+          else
+            echo "dashboard/manifest.json missing — skip (pre-v1.1 data)"
+          fi

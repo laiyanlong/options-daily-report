@@ -1,0 +1,37 @@
+name: Guard — no Python
+
+# This is the public data-only repo. The engine lives in a private repo.
+# Never allow a .py file to land here — that would leak proprietary logic.
+#
+# Also guard against requirements.txt / pyproject.toml / setup.py — those
+# imply Python source is coming.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reject Python files
+        run: |
+          FORBIDDEN=$(git ls-files \
+            '*.py' \
+            'pyproject.toml' \
+            'requirements*.txt' \
+            'setup.py' \
+            'setup.cfg' \
+            'Pipfile' \
+            'poetry.lock' \
+            | grep -v '^.github/' || true)
+          if [ -n "$FORBIDDEN" ]; then
+            echo "::error::Python source files are not allowed in this public repo."
+            echo "The analysis engine is kept private. These files must be removed:"
+            echo "$FORBIDDEN"
+            exit 1
+          fi
+          echo "✓ No Python source detected."

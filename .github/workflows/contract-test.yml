@@ -1,0 +1,107 @@
+name: Contract Test (app ↔ schema)
+
+# Proves the mobile app still type-checks against the current schema and
+# that dashboard/manifest.json.schema_version matches the latest schema
+# file here. Runs weekly so drift shows up within 7 days — the buffer
+# docs/COMPAT.md promises between schema change and app release.
+#
+# Requires repo secret APP_REPO_PAT: a fine-grained PAT with read access
+# to laiyanlong/dappgo-options-app (the app is a private repo). If the
+# secret is missing, the job skips gracefully — do NOT fail CI over a
+# one-time setup gap.
+
+on:
+  schedule:
+    # Monday 09:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  contract-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for APP_REPO_PAT secret
+        id: check_pat
+        env:
+          APP_REPO_PAT: ${{ secrets.APP_REPO_PAT }}
+        run: |
+          if [ -z "${APP_REPO_PAT}" ]; then
+            echo "APP_REPO_PAT is not configured — skipping contract test."
+            echo "To enable: create a fine-grained PAT with read access to"
+            echo "  laiyanlong/dappgo-options-app and add it as repo secret APP_REPO_PAT."
+            echo "has_pat=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_pat=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out schema repo (this one)
+        if: steps.check_pat.outputs.has_pat == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: schema-repo
+
+      - name: Check out mobile app repo
+        if: steps.check_pat.outputs.has_pat == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: laiyanlong/dappgo-options-app
+          token: ${{ secrets.APP_REPO_PAT }}
+          path: app-repo
+
+      - name: Set up Node.js
+        if: steps.check_pat.outputs.has_pat == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install app deps
+        if: steps.check_pat.outputs.has_pat == 'true'
+        working-directory: app-repo
+        run: npm install --no-audit --ignore-scripts
+
+      - name: Type-check app
+        if: steps.check_pat.outputs.has_pat == 'true'
+        working-directory: app-repo
+        run: npx tsc --noEmit
+
+      - name: Assert manifest.schema_version matches latest schema file
+        if: steps.check_pat.outputs.has_pat == 'true'
+        working-directory: schema-repo
+        run: |
+          set -euo pipefail
+
+          if [ ! -f dashboard/manifest.json ]; then
+            echo "dashboard/manifest.json missing — nothing to check"
+            exit 0
+          fi
+
+          manifest_version=$(node -e "console.log(require('./dashboard/manifest.json').schema_version)")
+          echo "manifest.json schema_version = ${manifest_version}"
+
+          # Pick the max semver across all schemas/*.schema.json files.
+          # Version is stored in $schemaVersion.
+          latest_version=$(node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const dir = 'schemas';
+            const files = fs.readdirSync(dir).filter(f => f.endsWith('.schema.json'));
+            const versions = files.map(f => {
+              const obj = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+              return obj.\$schemaVersion || '0.0.0';
+            });
+            versions.sort((a, b) => {
+              const pa = a.split('.').map(Number);
+              const pb = b.split('.').map(Number);
+              for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pb[i] - pa[i];
+              return 0;
+            });
+            console.log(versions[0]);
+          ")
+          echo "latest schema version across schemas/*.schema.json = ${latest_version}"
+
+          if [ "${manifest_version}" != "${latest_version}" ]; then
+            echo "::error::Contract mismatch: manifest.schema_version=${manifest_version} but latest schema file is ${latest_version}"
+            exit 1
+          fi
+
+          echo "Contract OK: app type-checks and schema versions agree."

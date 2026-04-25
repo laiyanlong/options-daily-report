@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/laiyanlong/options-daily-report/main/schemas/data.schema.json",
+  "$schemaVersion": "1.0.0",
   "title": "Options Daily Report — Dashboard Data",
-  "description": "Aggregate dashboard payload consumed by the mobile app and web viewer. Regenerated after each daily-report run.",
+  "description": "Aggregate dashboard payload consumed by the mobile app and web viewer. Regenerated after each daily-report run. Version bump policy: schemas/VERSIONING.md.",
   "type": "object",
   "required": ["last_updated", "summary", "live_prices", "ticker_stats", "options_matrices", "timing", "oi_distribution"],
   "additionalProperties": true,

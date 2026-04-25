@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/laiyanlong/options-daily-report/main/schemas/weekly_summary.schema.json",
+  "$schemaVersion": "1.0.0",
   "title": "Options Daily Report — Weekly Summary",
-  "description": "Aggregate weekly performance + next-week outlook. Regenerated every Sunday.",
+  "description": "Aggregate weekly performance + next-week outlook. Regenerated every Sunday. Version bump policy: schemas/VERSIONING.md.",
   "type": "object",
   "required": ["week_ending", "tickers"],
   "additionalProperties": true,
