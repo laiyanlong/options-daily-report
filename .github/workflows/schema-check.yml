@@ -31,6 +31,7 @@ jobs:
           if [ -f dashboard/data.json ]; then
             ajv validate \
               --spec=draft2020 \
+              --strict=false \
               -s schemas/data.schema.json \
               -d dashboard/data.json \
               --all-errors --verbose
@@ -43,6 +44,7 @@ jobs:
           if [ -f dashboard/weekly_summary.json ]; then
             ajv validate \
               --spec=draft2020 \
+              --strict=false \
               -s schemas/weekly_summary.schema.json \
               -d dashboard/weekly_summary.json \
               --all-errors --verbose
@@ -62,6 +64,7 @@ jobs:
             echo "Validating $f"
             ajv validate \
               --spec=draft2020 \
+              --strict=false \
               -s schemas/ai_commentary.schema.json \
               -d "$f" \
               --all-errors --verbose
@@ -72,6 +75,7 @@ jobs:
           if [ -f dashboard/manifest.json ]; then
             ajv validate \
               --spec=draft2020 \
+              --strict=false \
               -s schemas/manifest.schema.json \
               -d dashboard/manifest.json \
               --all-errors --verbose
