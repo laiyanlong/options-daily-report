@@ -61,6 +61,10 @@ any investment decision.
 Options mobile app (iOS) — currently in private beta. Coming to the
 App Store soon.
 
+## Family
+
+Sibling product: **DappGo TW Stocks** ([tw-stocks-core](https://github.com/laiyanlong/tw-stocks-core) · [tw-stocks-daily-report](https://github.com/laiyanlong/tw-stocks-daily-report) · [dappgo-tw-stocks-app](https://github.com/laiyanlong/dappgo-tw-stocks-app)) — same three-repo architecture (engine → public data → mobile app), different domain.
+
 ---
 
 © 2026 Yan Long Lai. All rights reserved.
